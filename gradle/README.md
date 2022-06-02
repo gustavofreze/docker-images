@@ -15,7 +15,8 @@
 
 ## Supported tags and respective Dockerfile links
 
-- [`7.1.1`](https://github.com/gustavofreze/docker-images/blob/main/gradle/7.1.1/Dockerfile)
+- [`7.1.1`](https://github.com/gustavofreze/docker-images/blob/main/gradle/7.1.1/Dockerfile), 
+[`7.4.2`](https://github.com/gustavofreze/docker-images/blob/main/gradle/7.4.2/Dockerfile)
 
 <div id='gradle'></div> 
 
