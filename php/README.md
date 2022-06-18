@@ -21,7 +21,8 @@
 ## Supported tags and respective Dockerfile links
 
 - [`8.0.6`](https://github.com/gustavofreze/docker-images/blob/main/php/8.0.6/Dockerfile), 
-[`8.0.6-fpm`](https://github.com/gustavofreze/docker-images/blob/main/php/8.0.6-fpm/Dockerfile)
+[`8.0.6-fpm`](https://github.com/gustavofreze/docker-images/blob/main/php/8.0.6-fpm/Dockerfile),
+[`8.1.7`](https://github.com/gustavofreze/docker-images/blob/main/php/8.1.7/Dockerfile)
 
 <div id='php'></div> 
 
@@ -45,13 +46,13 @@ WORKDIR /usr/src/myapp
 You can then run and build the Docker image:
 
 ```shell
-> docker build -t my-php-app .
+docker build -t my-php-app .
 ```
 
 After the image is built:
 
 ```shell
-> docker run -it --rm --name my-running-app my-php-app
+docker run -it --rm --name my-running-app my-php-app
 ```
 
 <div id='extensions'></div> 
@@ -80,7 +81,7 @@ remains clean and consistent.
 
 ### Mess Detector
 
-[PHPMD](https://phpmd.org) is a mature project and provides a diverse set of pre defined rules to detect code smells and
+[PHPMD](https://phpmd.org) is a mature project and provides a diverse set of pre-defined rules to detect code smells and
 possible errors within the analyzed source code.
 
 <div id='composer'></div> 
@@ -88,4 +89,4 @@ possible errors within the analyzed source code.
 ### Composer
 
 [Composer](https://getcomposer.org) is a tool for dependency management in PHP. It allows you to declare the libraries
-your project depends on and it will manage (install/update) them for you.
+your project depends on, and it will manage (install/update) them for you.

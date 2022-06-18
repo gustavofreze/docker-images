@@ -40,11 +40,11 @@ WORKDIR /usr/src/myapp
 You can then run and build the Docker image:
 
 ```shell
-> docker build -t my-gradle-app .
+docker build -t my-gradle-app .
 ```
 
 After the image is built:
 
 ```shell
-> docker run -it --rm --name my-running-app my-gradle-app
+docker run -it --rm --name my-running-app my-gradle-app
 ```
