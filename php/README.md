@@ -20,9 +20,10 @@
 
 ## Supported tags and respective Dockerfile links
 
-- [`8.0.6`](https://github.com/gustavofreze/docker-images/blob/main/php/8.0.6/Dockerfile), 
-[`8.0.6-fpm`](https://github.com/gustavofreze/docker-images/blob/main/php/8.0.6-fpm/Dockerfile),
-[`8.1.7`](https://github.com/gustavofreze/docker-images/blob/main/php/8.1.7/Dockerfile)
+- [`8.0.6`](https://github.com/gustavofreze/docker-images/blob/main/php/8.0.6/Dockerfile),
+  [`8.0.6-fpm`](https://github.com/gustavofreze/docker-images/blob/main/php/8.0.6-fpm/Dockerfile),
+  [`8.1.7`](https://github.com/gustavofreze/docker-images/blob/main/php/8.1.7/Dockerfile),
+  [`8.1.7-fpm`](https://github.com/gustavofreze/docker-images/blob/main/php/8.0.6-fpm/Dockerfile)
 
 <div id='php'></div> 
 
