@@ -23,6 +23,7 @@ RUN apk update \
     && docker-php-ext-install bcmath \
     && docker-php-ext-install sockets \
     && docker-php-ext-install opcache \
+    && docker-php-ext-install pdo_mysql \
     && rm -rf /var/cache/apk/*
 
 ADD https://phpmd.org/static/latest/phpmd.phar /usr/local/bin/phpmd
