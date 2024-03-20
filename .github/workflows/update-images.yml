@@ -10,7 +10,7 @@ jobs:
   php-81-alpine:
     runs-on: ubuntu-latest
     env:
-      PHP_VERSION: 8.1
+      TAG: 8.1
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -19,18 +19,18 @@ jobs:
         run: echo "${{ secrets.DOCKER_HUB_TOKEN }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
 
       - name: Pull existing Docker image
-        run: docker pull ${{ env.IMAGE_NAME }}:${{ env.PHP_VERSION }}
+        run: docker pull ${{ env.IMAGE_NAME }}:${{ env.TAG }}
 
       - name: Build new Docker image
-        run: docker build --no-cache -t ${{ env.IMAGE_NAME }}:${{ env.PHP_VERSION }} php/${{ env.PHP_VERSION }}/alpine/
+        run: docker build --no-cache -t ${{ env.IMAGE_NAME }}:${{ env.TAG }} php/8.1/alpine/
 
       - name: Push updated Docker image
-        run: docker push ${{ env.IMAGE_NAME }}:${{ env.PHP_VERSION }}
+        run: docker push ${{ env.IMAGE_NAME }}:${{ env.TAG }}
 
   php-81-alpine-fpm:
     runs-on: ubuntu-latest
     env:
-      PHP_VERSION: 8.1
+      TAG: 8.1-fpm
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -39,18 +39,18 @@ jobs:
         run: echo "${{ secrets.DOCKER_HUB_TOKEN }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
 
       - name: Pull existing Docker image
-        run: docker pull ${{ env.IMAGE_NAME }}:${{ env.PHP_VERSION }}
+        run: docker pull ${{ env.IMAGE_NAME }}:${{ env.TAG }}
 
       - name: Build new Docker image
-        run: docker build --no-cache -t ${{ env.IMAGE_NAME }}:${{ env.PHP_VERSION }} php/${{ env.PHP_VERSION }}/alpine-fpm/
+        run: docker build --no-cache -t ${{ env.IMAGE_NAME }}:${{ env.TAG }} php/8.1/alpine-fpm/
 
       - name: Push updated Docker image
-        run: docker push ${{ env.IMAGE_NAME }}:${{ env.PHP_VERSION }}
+        run: docker push ${{ env.IMAGE_NAME }}:${{ env.TAG }}
 
   php-82-alpine:
     runs-on: ubuntu-latest
     env:
-      PHP_VERSION: 8.2
+      TAG: 8.2
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -59,18 +59,18 @@ jobs:
         run: echo "${{ secrets.DOCKER_HUB_TOKEN }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
 
       - name: Pull existing Docker image
-        run: docker pull ${{ env.IMAGE_NAME }}:${{ env.PHP_VERSION }}
+        run: docker pull ${{ env.IMAGE_NAME }}:${{ env.TAG }}
 
       - name: Build new Docker image
-        run: docker build --no-cache -t ${{ env.IMAGE_NAME }}:${{ env.PHP_VERSION }} php/${{ env.PHP_VERSION }}/alpine/
+        run: docker build --no-cache -t ${{ env.IMAGE_NAME }}:${{ env.TAG }} php/8.2/alpine/
 
       - name: Push updated Docker image
-        run: docker push ${{ env.IMAGE_NAME }}:${{ env.PHP_VERSION }}
+        run: docker push ${{ env.IMAGE_NAME }}:${{ env.TAG }}
 
   php-82-alpine-fpm:
     runs-on: ubuntu-latest
     env:
-      PHP_VERSION: 8.2
+      TAG: 8.2-fpm
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -79,18 +79,18 @@ jobs:
         run: echo "${{ secrets.DOCKER_HUB_TOKEN }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
 
       - name: Pull existing Docker image
-        run: docker pull ${{ env.IMAGE_NAME }}:${{ env.PHP_VERSION }}
+        run: docker pull ${{ env.IMAGE_NAME }}:${{ env.TAG }}
 
       - name: Build new Docker image
-        run: docker build --no-cache -t ${{ env.IMAGE_NAME }}:${{ env.PHP_VERSION }} php/${{ env.PHP_VERSION }}/alpine-fpm/
+        run: docker build --no-cache -t ${{ env.IMAGE_NAME }}:${{ env.TAG }} php/8.2/alpine-fpm/
 
       - name: Push updated Docker image
-        run: docker push ${{ env.IMAGE_NAME }}:${{ env.PHP_VERSION }}
+        run: docker push ${{ env.IMAGE_NAME }}:${{ env.TAG }}
 
   php-latest-alpine:
     runs-on: ubuntu-latest
     env:
-      PHP_VERSION: latest
+      TAG: latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -99,18 +99,18 @@ jobs:
         run: echo "${{ secrets.DOCKER_HUB_TOKEN }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
 
       - name: Pull existing Docker image
-        run: docker pull ${{ env.IMAGE_NAME }}:${{ env.PHP_VERSION }}
+        run: docker pull ${{ env.IMAGE_NAME }}:${{ env.TAG }}
 
       - name: Build new Docker image
-        run: docker build --no-cache -t ${{ env.IMAGE_NAME }}:${{ env.PHP_VERSION }} php/${{ env.PHP_VERSION }}/alpine/
+        run: docker build --no-cache -t ${{ env.IMAGE_NAME }}:${{ env.TAG }} php/latest/alpine/
 
       - name: Push updated Docker image
-        run: docker push ${{ env.IMAGE_NAME }}:${{ env.PHP_VERSION }}
+        run: docker push ${{ env.IMAGE_NAME }}:${{ env.TAG }}
 
   php-latest-alpine-fpm:
     runs-on: ubuntu-latest
     env:
-      PHP_VERSION: latest
+      TAG: latest-fpm
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -119,10 +119,10 @@ jobs:
         run: echo "${{ secrets.DOCKER_HUB_TOKEN }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
 
       - name: Pull existing Docker image
-        run: docker pull ${{ env.IMAGE_NAME }}:${{ env.PHP_VERSION }}
+        run: docker pull ${{ env.IMAGE_NAME }}:${{ env.TAG }}
 
       - name: Build new Docker image
-        run: docker build --no-cache -t ${{ env.IMAGE_NAME }}:${{ env.PHP_VERSION }} php/${{ env.PHP_VERSION }}/alpine-fpm/
+        run: docker build --no-cache -t ${{ env.IMAGE_NAME }}:${{ env.TAG }} php/latest/alpine-fpm/
 
       - name: Push updated Docker image
-        run: docker push ${{ env.IMAGE_NAME }}:${{ env.PHP_VERSION }}
+        run: docker push ${{ env.IMAGE_NAME }}:${{ env.TAG }}
