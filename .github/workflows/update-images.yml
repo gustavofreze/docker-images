@@ -1,0 +1,28 @@
+name: Update Docker images
+
+on:
+  workflow_dispatch:
+
+env:
+  IMAGE_NAME: gustavofreze/php
+
+jobs:
+  php8_2:
+    runs-on: ubuntu-latest
+    env:
+      PHP_VERSION: 8.2
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Login to Docker Hub
+        run: echo "${{ secrets.DOCKER_HUB_TOKEN }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
+
+      - name: Pull existing Docker image
+        run: docker pull ${{ env.IMAGE_NAME }}:${{ env.PHP_VERSION }}
+
+      - name: Build new Docker image
+        run: docker build --no-cache -t ${{ env.IMAGE_NAME }}:${{ env.PHP_VERSION }} php/${{ env.PHP_VERSION }}/alpine/Dockerfile
+
+      - name: Push updated Docker image
+        run: docker push ${{ env.IMAGE_NAME }}:${{ env.PHP_VERSION }}
