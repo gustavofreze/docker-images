@@ -22,7 +22,7 @@ jobs:
         run: docker pull ${{ env.IMAGE_NAME }}:${{ env.PHP_VERSION }}
 
       - name: Build new Docker image
-        run: docker build --no-cache -t ${{ env.IMAGE_NAME }}:${{ env.PHP_VERSION }} php/${{ env.PHP_VERSION }}/alpine/Dockerfile
+        run: docker build --no-cache -t ${{ env.IMAGE_NAME }}:${{ env.PHP_VERSION }} php/${{ env.PHP_VERSION }}/alpine/
 
       - name: Push updated Docker image
         run: docker push ${{ env.IMAGE_NAME }}:${{ env.PHP_VERSION }}
