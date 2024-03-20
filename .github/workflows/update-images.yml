@@ -1,7 +1,12 @@
 name: Update Docker images
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+  schedule:
+    - cron: '0 0 * * 1'
 
 env:
   IMAGE_NAME: gustavofreze/php
