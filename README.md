@@ -1,6 +1,6 @@
 # Docker images
 
-This repository contains Dockerfiles and examples for building Docker images of some languages and tools, for
+This repository contains Dockerfiles and examples for building Docker images of some languages and tools for
 development environment.
 
 Use these images as the basis for your dockerfile, and in your final image, it's recommended to add a non-root user.
