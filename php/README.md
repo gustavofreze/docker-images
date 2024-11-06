@@ -23,11 +23,9 @@
 - [`8.1`](https://github.com/gustavofreze/docker-images/blob/main/php/8.1/alpine/Dockerfile),
   [`8.2`](https://github.com/gustavofreze/docker-images/blob/main/php/8.2/alpine/Dockerfile),
   [`8.3`](https://github.com/gustavofreze/docker-images/blob/main/php/8.3/alpine/Dockerfile),
-  [`latest`](https://github.com/gustavofreze/docker-images/blob/main/php/latest/alpine/Dockerfile),
   [`8.1-fpm`](https://github.com/gustavofreze/docker-images/blob/main/php/8.1/alpine-fpm/Dockerfile),
   [`8.2-fpm`](https://github.com/gustavofreze/docker-images/blob/main/php/8.2/alpine-fpm/Dockerfile),
-  [`8.3-fpm`](https://github.com/gustavofreze/docker-images/blob/main/php/8.3/alpine-fpm/Dockerfile),
-  [`latest-fpm`](https://github.com/gustavofreze/docker-images/blob/main/php/latest/alpine-fpm/Dockerfile)
+  [`8.3-fpm`](https://github.com/gustavofreze/docker-images/blob/main/php/8.3/alpine-fpm/Dockerfile)
 
 <div id='php'></div> 
 
