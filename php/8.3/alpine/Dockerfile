@@ -27,6 +27,7 @@ RUN apk update  \
            unzip \
            openssl \
            gmp-dev \
+           docker-cli \
            libzip-dev \
            linux-headers \
            ca-certificates \
