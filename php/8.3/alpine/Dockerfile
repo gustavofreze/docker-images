@@ -15,27 +15,18 @@ ENV PHP_INI_FILE="${PHP_INI_DIR}/php.ini"
 ARG PHPIZE_DEPS
 
 RUN apk update  \
-    && apk add --no-cache \
-           g++ \
-           git \
-           tar \
-           zip \
-           gmp \
-           curl \
-           make \
-           bash \
-           unzip \
-           openssl \
-           gmp-dev \
-           libzip-dev \
-           linux-headers \
-           ca-certificates \
-           ${PHPIZE_DEPS}  \
+    && apk add --no-cache --update ${PHPIZE_DEPS} \
+        git \
+        bash \
+        docker-cli \
+        libzip-dev \
+        linux-headers \
+        ca-certificates \
     && pecl install xdebug  \
-    && docker-php-ext-configure zip \
-    && docker-php-ext-install pdo zip gmp bcmath sockets opcache pdo_mysql \
+    && docker-php-ext-install bcmath pdo pdo_mysql \
     && docker-php-ext-enable xdebug  \
-    && rm -rf /var/cache/apk/* \
+    && apk del ${PHPIZE_DEPS} \
+    && rm -rf /var/cache/apk/* /tmp/* \
     && git config --global --add safe.directory '*'
 
 ADD https://phpmd.org/static/latest/phpmd.phar /usr/local/bin/phpmd
