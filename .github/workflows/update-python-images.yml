@@ -1,0 +1,35 @@
+name: Update Python Docker images
+
+on:
+  push:
+    branches:
+      - main
+
+  schedule:
+    - cron: '0 0 * * 1'
+
+  workflow_dispatch:
+
+env:
+  IMAGE_NAME: gustavofreze/python
+
+jobs:
+  python-3-14-alpine:
+    runs-on: ubuntu-latest
+    env:
+      TAG: 3.14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Login to Docker Hub
+        run: echo "${{ secrets.DOCKER_HUB_TOKEN }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
+
+      - name: Pull existing Docker image
+        run: docker pull ${{ env.IMAGE_NAME }}:${{ env.TAG }}
+
+      - name: Build new Docker image
+        run: docker build --no-cache -t ${{ env.IMAGE_NAME }}:${{ env.TAG }} python/3.14/alpine/
+
+      - name: Push updated Docker image
+        run: docker push ${{ env.IMAGE_NAME }}:${{ env.TAG }}
