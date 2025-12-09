@@ -7,13 +7,12 @@ LABEL author="Gustavo Freze" \
       org.label-schema.vcs-url="https://github.com/gustavofreze/docker-images/blob/main/python/3.14/alpine/Dockerfile" \
       org.label-schema.schema-version="1.0"
 
-ARG POETRY_VERSION=1.8.4
+ARG POETRY_VERSION=2.2
 
 ENV PIP_NO_CACHE_DIR=1
 ENV PIP_ROOT_USER_ACTION=ignore
 ENV POETRY_NO_INTERACTION=1
 ENV POETRY_VIRTUALENVS_IN_PROJECT=true
 
-RUN apk add --no-cache build-base git \
-    && python -m pip install --no-cache-dir --upgrade pip "poetry==${POETRY_VERSION}" \
+RUN python -m pip install --no-cache-dir --upgrade pip "poetry==${POETRY_VERSION}" \
     && rm -rf /root/.cache/pip
