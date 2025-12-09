@@ -2,8 +2,7 @@
 
 * [Quick reference](#reference)
 * [Supported tags and respective Dockerfile links](#tags)
-* [What is PHP?](#php)
-* [How to use this PHP?](#use)
+* [How to use this image?](#use)
 * [Extensions and tools](#extensions)
     - [Xdebug](#xdebug)
     - [CodeSniffer](#code_sniffer)
@@ -25,13 +24,6 @@
 [`8.2-fpm`](https://github.com/gustavofreze/docker-images/blob/main/php/8.2/alpine-fpm/Dockerfile),
 [`8.3-fpm`](https://github.com/gustavofreze/docker-images/blob/main/php/8.3/alpine-fpm/Dockerfile)
 
-<div id='php'></div> 
-
-## What is PHP?
-
-[PHP](https://www.php.net) is a widely used open source general-purpose scripting language especially suited for
-web development.
-
 <div id='use'></div> 
 
 ## How to use this image?
@@ -39,7 +31,7 @@ web development.
 Create a Dockerfile in your project:
 
 ```dockerfile
-FROM gustavofreze/php
+FROM gustavofreze/php:version
 COPY . /usr/src/myapp
 WORKDIR /usr/src/myapp
 ```
