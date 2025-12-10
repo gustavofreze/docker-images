@@ -7,6 +7,7 @@ LABEL author="Gustavo Freze" \
       org.label-schema.vcs-url="https://github.com/gustavofreze/docker-images/blob/main/python/3.14/alpine/Dockerfile" \
       org.label-schema.schema-version="1.0"
 
+ARG PYTHONPATH=""
 ARG POETRY_VERSION=2.2
 
 ENV PIP_NO_CACHE_DIR=1
