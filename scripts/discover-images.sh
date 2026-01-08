@@ -69,16 +69,31 @@ discover_images() {
         context="${dockerfile%/Dockerfile}"
         relative_path="${context#"$IMAGES_DIR"/}"
 
-        IFS='/' read -r name version variant <<< "$relative_path" || true
+        local parts
+        IFS='/' read -ra parts <<< "$relative_path"
 
-        if [[ -n "${variant:-}" ]]; then
+        if [[ ${#parts[@]} -lt 2 ]]; then
+            echo "Warning: Skipping invalid path structure: $context" >&2
+            continue
+        fi
+
+        name="${parts[0]}"
+        version="${parts[1]}"
+
+        if [[ ${#parts[@]} -ge 3 ]]; then
+            variant="${parts[2]}"
             tag="${version}-${variant}"
         else
             tag="${version}"
         fi
 
-        images+=("{\"context\":\"$context\",\"name\":\"$name\",\"tag\":\"$tag\"}")
-    done < <(find "$IMAGES_DIR" -name Dockerfile -type f 2>/dev/null)
+        if [[ -z "$name" || -z "$version" ]]; then
+            echo "Warning: Skipping invalid image: $context" >&2
+            continue
+        fi
+
+        images+=("{\"context\": \"$context\",\"name\":\"$name\",\"tag\":\"$tag\"}")
+    done < <(find "$IMAGES_DIR" -name Dockerfile -type f 2>/dev/null | sort)
 
     if [[ ${#images[@]} -eq 0 ]]; then
         echo "[]"
@@ -101,7 +116,7 @@ format_readable() {
     echo "$json_input" | jq -r '.[] |
         "  Directory: \(.context)\n" +
         "     Name: \(.name)\n" +
-        "     Tag:   \(.tag)\n"'
+        "     Tag:    \(.tag)\n"'
 }
 
 main() {
