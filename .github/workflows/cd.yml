@@ -8,6 +8,11 @@ on:
       - '.github/workflows/cd.yml'
   workflow_dispatch:
 
+permissions:
+  contents: read
+  packages: write
+  security-events: write
+
 env:
   GHCR_REGISTRY: ghcr.io
   DOCKER_BUILDKIT: 1
@@ -56,10 +61,10 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.context }}/Dockerfile
-          platforms: linux/amd64,linux/arm64
           push: true
+          file: ${{ matrix.context }}/Dockerfile
+          context: ${{ matrix.context }}
+          platforms: linux/amd64,linux/arm64
           tags: |
             ${{ secrets.DOCKER_HUB_USERNAME }}/${{ matrix.name }}:${{ matrix.tag }}
             ${{ env.GHCR_REGISTRY }}/${{ github.repository }}/${{ matrix.name }}:${{ matrix.tag }}
@@ -68,3 +73,25 @@ jobs:
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
+
+  scan:
+    name: Scan
+    needs: [ discover, publish ]
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      matrix:
+        include: ${{ fromJson(needs.discover.outputs.matrix) }}
+    steps:
+      - uses: aquasecurity/trivy-action@0.33.1
+        with:
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+          image-ref: "${{ env.GHCR_REGISTRY }}/${{ github.repository }}/${{ matrix.name }}:${{ matrix.tag }}"
+
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif
+          category: "trivy-${{ matrix.name }}-${{ matrix.tag }}"
