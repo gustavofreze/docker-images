@@ -1,10 +1,10 @@
-FROM php:8.3-alpine
+FROM php:8.3-fpm-alpine
 
 LABEL author="Gustavo Freze" \
       maintainer="Gustavo Freze" \
-      org.label-schema.name="gustavofreze/php:8.3" \
+      org.label-schema.name="gustavofreze/php:8.3-fpm" \
       org.label-schema.usage="https://github.com/gustavofreze/docker-images/blob/main/images/php/README.md" \
-      org.label-schema.vcs-url="https://github.com/gustavofreze/docker-images/blob/main/images/php/8.3/alpine/Dockerfile" \
+      org.label-schema.vcs-url="https://github.com/gustavofreze/docker-images/blob/main/images/php/8.3/alpine-fpm/Dockerfile" \
       org.label-schema.schema-version="1.0"
 
 ENV LANG="C.UTF-8" \
@@ -47,7 +47,7 @@ RUN set -eux \
 WORKDIR /var/www/html
 
 RUN set -eux \
-    && curl -sfSL "${CONFIG_BASE_URL}/php-cli.ini" -o "${PHP_INI_DIR}/php.ini" \
+    && curl -sfSL "${CONFIG_BASE_URL}/php-fpm.ini" -o "${PHP_INI_DIR}/php.ini" \
     && curl -sfSL "${CONFIG_BASE_URL}/xdebug.ini" -o "${PHP_INI_DIR}/conf.d/99-xdebug.ini"
 
 EXPOSE 9000
