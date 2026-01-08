@@ -33,7 +33,7 @@ jobs:
           echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
 
   publish:
-    name: "Publish ${{ matrix.name }}: ${{ matrix.tag }}"
+    name: "Publish ${{ matrix.name }}:${{ matrix.tag }}"
     needs: discover
     runs-on: ubuntu-latest
     strategy:
