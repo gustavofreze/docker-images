@@ -33,7 +33,7 @@ jobs:
           echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
 
   publish:
-    name: Publish
+    name: "Publish ${{ matrix.name }}:${{ matrix.tag }}"
     needs: discover
     runs-on: ubuntu-latest
     strategy:
@@ -59,7 +59,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           push: true
           file: ${{ matrix.context }}/Dockerfile
@@ -67,7 +67,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           tags: |
             ${{ secrets.DOCKER_HUB_USERNAME }}/${{ matrix.name }}:${{ matrix.tag }}
-            ${{ env.GHCR_REGISTRY }}/${{ github.repository }}/${{ matrix.name }}:${{ matrix.tag }}
+            ${{ env.GHCR_REGISTRY }}/${{ github.repository_owner }}/${{ matrix.name }}:${{ matrix.tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           labels: |
@@ -75,7 +75,7 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
 
   scan:
-    name: Scan
+    name: "Scan ${{ matrix.name }}:${{ matrix.tag }}"
     needs: [ discover, publish ]
     runs-on: ubuntu-latest
     continue-on-error: true
@@ -90,7 +90,7 @@ jobs:
           severity: CRITICAL,HIGH
           image-ref: "${{ env.GHCR_REGISTRY }}/${{ github.repository }}/${{ matrix.name }}:${{ matrix.tag }}"
 
-      - uses: github/codeql-action/upload-sarif@v3
+      - uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: trivy-results.sarif
