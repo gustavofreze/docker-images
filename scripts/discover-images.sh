@@ -92,7 +92,7 @@ discover_images() {
             continue
         fi
 
-        images+=("{\"context\": \"$context\",\"name\":\"$name\",\"tag\":\"$tag\"}")
+        images+=("{\"context\": \"$context\", \"name\": \"$name\", \"tag\": \"$tag\"}")
     done < <(find "$IMAGES_DIR" -name Dockerfile -type f 2>/dev/null | sort)
 
     if [[ ${#images[@]} -eq 0 ]]; then
@@ -114,9 +114,9 @@ format_readable() {
     echo ""
 
     echo "$json_input" | jq -r '.[] |
-        "  Directory: \(.context)\n" +
-        "     Name: \(.name)\n" +
-        "     Tag:    \(.tag)\n"'
+        "Directory: \(.context)\n" +
+        "Name:      \(.name)\n" +
+        "Tag:       \(.tag)\n"'
 }
 
 main() {
