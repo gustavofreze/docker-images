@@ -2,9 +2,9 @@ FROM php:8.3-alpine
 
 LABEL author="Gustavo Freze" \
       maintainer="Gustavo Freze" \
-      org.label-schema.name="gustavofreze/php: 8.3" \
-      org.label-schema.usage="https://github.com/gustavofreze/docker-images/blob/main/php/README.md" \
-      org.label-schema.vcs-url="https://github.com/gustavofreze/docker-images/blob/main/php/8.3/alpine/Dockerfile" \
+      org.label-schema.name="gustavofreze/php:8.3" \
+      org.label-schema.usage="https://github.com/gustavofreze/docker-images/blob/main/images/php/README.md" \
+      org.label-schema.vcs-url="https://github.com/gustavofreze/docker-images/blob/main/images/php/8.3/alpine/Dockerfile" \
       org.label-schema.schema-version="1.0"
 
 ENV LANG="C.UTF-8" \
@@ -31,7 +31,7 @@ RUN apk add --no-cache \
     && git config --global --add safe.directory '*' \
     && curl -sL https://phpmd.org/static/latest/phpmd.phar -o /usr/local/bin/phpmd \
     && curl -sL https://squizlabs.github.io/PHP_CodeSniffer/phpcs.phar -o /usr/local/bin/phpcs \
-    && curl -sL https://squizlabs.github.io/PHP_CodeSniffer/phpcbf. phar -o /usr/local/bin/phpcbf \
+    && curl -sL https://squizlabs.github.io/PHP_CodeSniffer/phpcbf.phar -o /usr/local/bin/phpcbf \
     && chmod +x /usr/local/bin/phpmd /usr/local/bin/phpcs /usr/local/bin/phpcbf \
     && curl -sL https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer --2 \
     && composer config --global github-protocols https \

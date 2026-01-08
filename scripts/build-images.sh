@@ -46,11 +46,11 @@ main() {
         tag=$(printf '%s' "$item" | jq -r '.tag')
 
         if [[ "$context" != "null" ]] && [[ "$name" != "null" ]] && [[ "$tag" != "null" ]]; then
-            echo -e "${YELLOW}Building ${name}: ${tag}...${RESET}"
-            if docker build -q "${context}" -t "local/${name}:${tag}"; then
-                echo -e "  ${GREEN}✓ ${name}: ${tag} built successfully${RESET}"
+            echo -e "${YELLOW}Building ${name}:${tag}...${RESET}"
+            if docker build --load -q "${context}" -t "local/${name}:${tag}"; then
+                echo -e "  ${GREEN}✓ ${name}:${tag} built successfully${RESET}"
             else
-                echo -e "  ${RED}✗ Failed to build ${name}: ${tag}${RESET}"
+                echo -e "  ${RED}✗ Failed to build ${name}:${tag}${RESET}"
                 exit 1
             fi
         fi
