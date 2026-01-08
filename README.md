@@ -8,7 +8,7 @@ Check [best practices for writing Dockerfiles](https://docs.docker.com/develop/d
 
 ## Images
 
-- [PHP](php)
-- [Python](python)
+- [PHP](images/php)
+- [Python](images/python)
 
 Images from this repository are shared on the [Docker Hub](https://hub.docker.com/u/gustavofreze).
