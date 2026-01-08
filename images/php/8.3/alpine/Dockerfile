@@ -12,38 +12,38 @@ ENV LANG="C.UTF-8" \
     PHP_INI_DIR="/usr/local/etc/php" \
     PHP_INI_FILE="${PHP_INI_DIR}/php.ini"
 
-ARG PHPIZE_DEPS
+ARG PHPIZE_DEPS="autoconf dpkg-dev dpkg file g++ gcc libc-dev make pkgconf re2c"
 
-RUN apk add --no-cache \
-        ${PHPIZE_DEPS} \
-        git \
-        bash \
-        curl \
-        docker-cli \
-        libzip-dev \
-        linux-headers \
-        ca-certificates \
+RUN apk update  \
+    && apk add --no-cache \
+      git \
+      bash \
+      libzip \
+      docker-cli \
+      ca-certificates \
+    && apk add --no-cache --virtual .build-deps $PHPIZE_DEPS libzip-dev linux-headers \
     && pecl install xdebug \
-    && docker-php-ext-install -j$(nproc) bcmath pdo pdo_mysql \
     && docker-php-ext-enable xdebug \
-    && apk del ${PHPIZE_DEPS} linux-headers \
-    && rm -rf /tmp/* /var/cache/apk/* /root/.cache \
-    && git config --global --add safe.directory '*' \
-    && curl -sL https://phpmd.org/static/latest/phpmd.phar -o /usr/local/bin/phpmd \
+    && docker-php-ext-install -j$(nproc) bcmath pdo pdo_mysql \
+    && apk del .build-deps \
+    && rm -rf /tmp/* /var/cache/apk/* /root/.pearrc
+
+COPY --from=composer:2.7 /usr/bin/composer /usr/local/bin/composer
+
+RUN git config --global --add safe.directory '*' \
+    && composer config --global github-protocols https
+
+RUN curl -sL https://phpmd.org/static/latest/phpmd.phar -o /usr/local/bin/phpmd \
     && curl -sL https://squizlabs.github.io/PHP_CodeSniffer/phpcs.phar -o /usr/local/bin/phpcs \
     && curl -sL https://squizlabs.github.io/PHP_CodeSniffer/phpcbf.phar -o /usr/local/bin/phpcbf \
-    && chmod +x /usr/local/bin/phpmd /usr/local/bin/phpcs /usr/local/bin/phpcbf \
-    && curl -sL https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer --2 \
-    && composer config --global github-protocols https \
-    && composer clear-cache \
-    && rm -rf /var/www/* \
+    && chmod +x /usr/local/bin/phpmd /usr/local/bin/phpcs /usr/local/bin/phpcbf
+
+RUN rm -rf /var/www/* \
     && mkdir -p /var/www/html
 
-RUN curl -sL https://raw.githubusercontent.com/gustavofreze/docker-images/main/images/php/shared/configs/php-cli.ini \
-        -o "${PHP_INI_FILE}" \
-    && curl -sL https://raw.githubusercontent.com/gustavofreze/docker-images/main/images/php/shared/configs/xdebug.ini \
-        -o "${PHP_INI_DIR}/conf.d/99-xdebug.ini"
-
 WORKDIR /var/www/html
+
+RUN curl -sL https://raw.githubusercontent.com/gustavofreze/docker-images/main/images/php/shared/configs/php-cli.ini -o "${PHP_INI_FILE}" \
+    && curl -sL https://raw.githubusercontent.com/gustavofreze/docker-images/main/images/php/shared/configs/xdebug.ini -o "${PHP_INI_DIR}/conf.d/99-xdebug.ini"
 
 EXPOSE 9000

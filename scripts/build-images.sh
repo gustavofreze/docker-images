@@ -5,58 +5,40 @@ readonly RED='\033[0;31m'
 readonly RESET='\033[0m'
 readonly GREEN='\033[0;32m'
 readonly YELLOW='\033[0;33m'
+readonly REPO_OWNER="gustavofreze"
 
 SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly SCRIPTS_DIR
 DISCOVER_SCRIPT="${SCRIPTS_DIR}/discover-images.sh"
-readonly DISCOVER_SCRIPT
 
-check_dependencies() {
-    if ! command -v jq &>/dev/null; then
-        echo "Error: jq is required. Please install it first." >&2
-        exit 1
-    fi
+echo "Building Docker images..."
 
-    if ! command -v docker &>/dev/null; then
-        echo "Error: docker is required." >&2
-        exit 1
-    fi
-}
+chmod +x "${DISCOVER_SCRIPT}"
 
-main() {
-    check_dependencies
+images_json=$("${DISCOVER_SCRIPT}" --format=json)
 
-    echo "Building Docker images..."
+if [[ $(echo "$images_json" | jq '. | length') -eq 0 ]]; then
+    echo "No images found to build."
+    exit 0
+fi
 
-    chmod +x "${DISCOVER_SCRIPT}"
+count=$(echo "$images_json" | jq '. | length')
+for ((i=0; i<count; i++)); do
+    context=$(echo "$images_json" | jq -r ".[$i].context")
+    name=$(echo "$images_json" | jq -r ".[$i].name")
+    tag=$(echo "$images_json" | jq -r ".[$i].tag")
 
-    local images_json
-    images_json=$("${DISCOVER_SCRIPT}" --format=json)
+    if [[ -n "$context" ]] && [[ -n "$name" ]] && [[ -n "$tag" ]]; then
+        full_image_name="${REPO_OWNER}/${name}:${tag}"
 
-    if [[ "$images_json" == "[]" ]]; then
-        echo "No images found to build."
-        exit 0
-    fi
+        echo -e "${YELLOW}Building ${full_image_name}...${RESET}"
 
-    local item context name tag
-
-    while IFS= read -r item; do
-        context=$(printf '%s' "$item" | jq -r '.context')
-        name=$(printf '%s' "$item" | jq -r '.name')
-        tag=$(printf '%s' "$item" | jq -r '.tag')
-
-        if [[ "$context" != "null" ]] && [[ "$name" != "null" ]] && [[ "$tag" != "null" ]]; then
-            echo -e "${YELLOW}Building ${name}:${tag}...${RESET}"
-            if docker build --load -q "${context}" -t "local/${name}:${tag}"; then
-                echo -e "  ${GREEN}✓ ${name}:${tag} built successfully${RESET}"
-            else
-                echo -e "  ${RED}✗ Failed to build ${name}:${tag}${RESET}"
-                exit 1
-            fi
+        if docker build --load -q "${context}" -t "${full_image_name}"; then
+            echo -e "  ${GREEN}✓ ${full_image_name} built successfully${RESET}"
+        else
+            echo -e "  ${RED}✗ Failed to build ${full_image_name}${RESET}"
+            exit 1
         fi
-    done < <(printf '%s' "$images_json" | jq -c '.[]')
+    fi
+done
 
-    echo -e "${GREEN}Build complete!${RESET}"
-}
-
-main "$@"
+echo -e "${GREEN}Build complete!${RESET}"

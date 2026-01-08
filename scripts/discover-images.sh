@@ -1,58 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly SCRIPT_NAME="${0##*/}"
 readonly IMAGES_DIR="images"
-readonly VALID_FORMATS=("json" "readable")
 FORMAT="json"
 
-usage() {
-    cat <<EOF
-Usage: $SCRIPT_NAME [--format=json|readable] [--help]
+for arg in "$@"; do
+    case "$arg" in
+        --format=*)
+            FORMAT="${arg#*=}"
+            ;;
+    esac
+done
 
-Options:
-    --format=json|readable  Output format (default: json)
-    --help                  Show this help message
-
-Examples:
-    $SCRIPT_NAME --format=json
-    $SCRIPT_NAME --format=readable
-EOF
-}
-
-validate_format() {
-    local format="$1"
-    for valid in "${VALID_FORMATS[@]}"; do
-        if [[ "$format" == "$valid" ]]; then
-            return 0
-        fi
-    done
-    echo "Error: Invalid format '$format'. Use 'json' or 'readable'." >&2
-    usage
+if [[ "$FORMAT" != "json" && "$FORMAT" != "readable" ]]; then
+    echo "Error: Invalid format '$FORMAT'. Use 'json' or 'readable'." >&2
     exit 1
-}
-
-parse_args() {
-    for arg in "$@"; do
-        case "$arg" in
-            --format=*)
-                local format="${arg#*=}"
-                validate_format "$format"
-                FORMAT="$format"
-                ;;
-            --help)
-                usage
-                exit 0
-                ;;
-            *)
-                echo "Error: Unknown argument '$arg'" >&2
-                usage
-                exit 1
-                ;;
-        esac
-    done
-    readonly FORMAT
-}
+fi
 
 install_jq() {
     echo "jq is not installed. Installing..." >&2
@@ -106,7 +69,7 @@ discover_images() {
         context="${dockerfile%/Dockerfile}"
         relative_path="${context#"$IMAGES_DIR"/}"
 
-        IFS='/' read -r name version variant <<< "$relative_path"
+        IFS='/' read -r name version variant <<< "$relative_path" || true
 
         if [[ -n "${variant:-}" ]]; then
             tag="${version}-${variant}"
@@ -136,13 +99,12 @@ format_readable() {
     echo ""
 
     echo "$json_input" | jq -r '.[] |
-        "  \(.context)\n" +
+        "  Directory: \(.context)\n" +
         "     Name: \(.name)\n" +
         "     Tag:   \(.tag)\n"'
 }
 
 main() {
-    parse_args "$@"
     check_dependencies
 
     if [[ ! -d "$IMAGES_DIR" ]]; then
