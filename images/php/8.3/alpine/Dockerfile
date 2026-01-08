@@ -16,6 +16,7 @@ ARG CONFIG_BASE_URL="https://raw.githubusercontent.com/gustavofreze/docker-image
 
 RUN set -eux; \
     apk update \
+    && apk upgrade --no-cache libsodium \
     && apk add --no-cache \
       git \
       bash \
