@@ -16,7 +16,7 @@
 
 ## Supported tags and respective Dockerfile links
 
-[`3.14`](https://github.com/gustavofreze/docker-images/blob/main/python/3.14/alpine/Dockerfile)
+[`3.14-alpine`](https://github.com/gustavofreze/docker-images/blob/main/images/python/3.14/alpine/Dockerfile)
 
 <div id='use'></div> 
 
