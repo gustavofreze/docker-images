@@ -1,4 +1,4 @@
-FROM php:8.3-alpine
+FROM php:8.5-alpine
 
 LABEL org.opencontainers.image.url="https://github.com/gustavofreze/docker-images" \
       org.opencontainers.image.title="gustavofreze/php:8.3-alpine" \
