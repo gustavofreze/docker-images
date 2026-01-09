@@ -22,9 +22,8 @@ jobs:
       - id: set-matrix
         run: |
           set -e
-          chmod +x ./scripts/discover-images.sh
-          MATRIX=$(./scripts/discover-images.sh --format=json)
-          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+          PACKAGES=$(find images -maxdepth 1 -mindepth 1 -type d -exec basename {} \; | jq -R -s -c 'split("\n") | map(select(. != "")) | map({name: . })')
+          echo "matrix=$PACKAGES" >> $GITHUB_OUTPUT
 
   update-readme:
     name: "Update README ${{ matrix.name }}"
@@ -41,7 +40,7 @@ jobs:
         id: check-readme
         run: |
           set -e
-          README_PATH="${{ matrix.context }}/README.md"
+          README_PATH="images/${{ matrix.name }}/README.md"
           if [ -f "$README_PATH" ]; then
             echo "exists=true" >> $GITHUB_OUTPUT
             echo "path=$README_PATH" >> $GITHUB_OUTPUT
@@ -56,27 +55,27 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -eo pipefail
-          
-           if ! command -v jq &> /dev/null; then
-             echo "::error::jq is not installed"
-             exit 1
-           fi
-          
-           README_PATH="${{ steps.check-readme.outputs.path }}"
-          
-           if ! README_CONTENT=$(jq -Rs . < "$README_PATH"); then
-             echo "::error::Failed to encode README content"
-             exit 1
-           fi
-          
-           if ! gh api \
-             --method PATCH \
-             -H "Accept: application/vnd.github+json" \
-             -H "X-GitHub-Api-Version: 2022-11-28" \
-             /user/packages/container/${{ matrix.name }} \
-             --raw-field readme="$README_CONTENT"; then
-             echo "::error::Failed to update package README"
-             exit 1
-           fi
+
+          if ! command -v jq &> /dev/null; then
+            echo "::error::jq is not installed"
+            exit 1
+          fi
+
+          README_PATH="${{ steps.check-readme.outputs.path }}"
+
+          if ! README_CONTENT=$(jq -Rs . < "$README_PATH"); then
+            echo "::error::Failed to encode README content"
+            exit 1
+          fi
+
+          if ! gh api \
+            --method PATCH \
+            -H "Accept:  application/vnd. github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /user/packages/container/${{ matrix.name }} \
+            --raw-field readme="$README_CONTENT"; then
+            echo "::error::Failed to update package README"
+            exit 1
+          fi
 
           echo "README updated for package: ${{ matrix.name }}"
