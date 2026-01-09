@@ -54,6 +54,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          OWNER="${{ github.repository_owner }}"
+          PACKAGE="${{ matrix.name }}"
+          
           set -eo pipefail
 
           if ! command -v jq &> /dev/null; then
@@ -68,22 +71,21 @@ jobs:
             exit 1
           fi
 
-          # Debug: Check package exists
-          echo "Checking package: ${{ matrix.name }}"
+          echo "Checking package: ${PACKAGE}"
           gh api \
             -H "Accept: application/vnd. github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            /users/${{ github.repository_owner }}/packages/container/${{ matrix.name }} \
+            "/users/${OWNER}/packages/container/${PACKAGE}" \
             --jq '.name' || echo "::warning::Package not found or not accessible"
 
           if ! gh api \
             --method PATCH \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            /users/${{ github.repository_owner }}/packages/container/${{ matrix.name }} \
+            "/users/${OWNER}/packages/container/${PACKAGE}" \
             --raw-field readme="$README_CONTENT"; then
             echo "::error::Failed to update package README"
             exit 1
           fi
 
-          echo "README updated for package: ${{ matrix.name }}"
+          echo "README updated for package: ${PACKAGE}"
