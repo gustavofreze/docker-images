@@ -20,30 +20,69 @@
 ## Supported tags and respective Dockerfile links
 
 [`8.3-alpine`](https://github.com/gustavofreze/docker-images/blob/main/images/php/8.3/alpine/Dockerfile),
-[`8.3-alpine-fpm`](https://github.com/gustavofreze/docker-images/blob/main/images/php/8.3/alpine-fpm/Dockerfile)
+[`8.3-alpine-fpm`](https://github.com/gustavofreze/docker-images/blob/main/images/php/8.3/alpine-fpm/Dockerfile),
+[`8.5-alpine`]()
+[`8.5-alpine-fpm`]()
 
 <div id='use'></div> 
 
 ## How to use this image?
 
+### CLI
+
+#### Running directly
+
+```shell
+docker run --rm -v $(pwd):/var/www/html gustavofreze/php:8.5-alpine php your-script.php
+```
+
+#### Using as base image
+
 Create a Dockerfile in your project:
 
 ```dockerfile
-FROM gustavofreze/php:version
-COPY . /usr/src/myapp
-WORKDIR /usr/src/myapp
+FROM gustavofreze/php:8.5-alpine
+COPY . /var/www/html
+WORKDIR /var/www/html
+RUN composer install --no-dev --optimize-autoloader
+CMD ["php", "your-script.php"]
 ```
 
-You can then run and build the Docker image:
+Build and run:
 
 ```shell
 docker build -t my-php-app .
+docker run --rm my-php-app
 ```
 
-After the image is built:
+### FPM (with Nginx)
+
+Create a `docker-compose.yml`:
+
+```yaml
+services:
+  php:
+    image: gustavofreze/php:8.5-fpm-alpine
+    volumes:
+      - ./src:/var/www/html
+    expose:
+      - "9000"
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./src:/var/www/html
+      - ./nginx.conf:/etc/nginx/conf.d/default. conf
+    depends_on:
+      - php
+```
+
+Run:
 
 ```shell
-docker run -it --rm --name my-running-app my-php-app
+docker compose up -d
 ```
 
 <div id='extensions'></div> 

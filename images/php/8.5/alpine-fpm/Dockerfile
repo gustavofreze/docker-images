@@ -1,10 +1,10 @@
-FROM php:8.3-fpm-alpine
+FROM php:8.5-fpm-alpine
 
 LABEL org.opencontainers.image.url="https://github.com/gustavofreze/docker-images" \
-      org.opencontainers.image.title="gustavofreze/php:8.3-alpine-fpm" \
-      org.opencontainers.image.source="https://github.com/gustavofreze/docker-images/blob/main/images/php/8.3/alpine-fpm/Dockerfile" \
+      org.opencontainers.image.title="gustavofreze/php:8.5-alpine-fpm" \
+      org.opencontainers.image.source="https://github.com/gustavofreze/docker-images/blob/main/images/php/8.5/alpine-fpm/Dockerfile" \
       org.opencontainers.image.authors="Gustavo Freze" \
-      org.opencontainers.image.description="PHP 8.3 FPM Alpine image for development" \
+      org.opencontainers.image.description="PHP 8.5 FPM Alpine image for development" \
       org.opencontainers.image.documentation="https://github.com/gustavofreze/docker-images/blob/main/images/php/README.md"
 
 ENV LANG="C.UTF-8" \
