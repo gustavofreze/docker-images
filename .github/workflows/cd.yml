@@ -75,22 +75,34 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
 
   scan:
-    name: "Scan ${{ matrix.name }}:${{ matrix.tag }}"
+    name: "Scan ${{ matrix.name }}: ${{ matrix.tag }}"
     needs: [ discover, publish ]
     runs-on: ubuntu-latest
     continue-on-error: true
+    permissions:
+      packages: read
+      security-events: write
     strategy:
       matrix:
         include: ${{ fromJson(needs.discover.outputs.matrix) }}
     steps:
-      - uses: aquasecurity/trivy-action@0.33.1
+      - name: Login to GitHub container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.GHCR_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Scan image
+        uses: aquasecurity/trivy-action@0.33.1
         with:
           format: sarif
           output: trivy-results.sarif
           severity: CRITICAL,HIGH
-          image-ref: "${{ env.GHCR_REGISTRY }}/${{ github.repository }}/${{ matrix.name }}:${{ matrix.tag }}"
+          image-ref: "${{ env.GHCR_REGISTRY }}/${{ github.repository_owner }}/${{ matrix.name }}:${{ matrix.tag }}"
 
-      - uses: github/codeql-action/upload-sarif@v4
+      - name: Upload scan results
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: trivy-results.sarif
