@@ -22,24 +22,31 @@
 
 ## How to use this image?
 
+### CLI
+
+#### Running directly
+
+```shell
+docker run --rm -v $(pwd):/var/www/html gustavofreze/python:3.14-alpine python your-script.py
+```
+
+#### Using as base image
+
 Create a Dockerfile in your project:
 
 ```dockerfile
-FROM gustavofreze/python:version
-COPY . /usr/src/myapp
-WORKDIR /usr/src/myapp
+FROM gustavofreze/python:3.14-alpine
+COPY . /var/www/html
+WORKDIR /var/www/html
+RUN poetry install --no-root --only main
+CMD ["python", "your-script.py"]
 ```
 
-You can then run and build the Docker image:
+Build and run:
 
 ```shell
 docker build -t my-python-app .
-```
-
-After the image is built:
-
-```shell
-docker run -it --rm --name my-running-app my-python-app
+docker run --rm my-python-app
 ```
 
 <div id='extensions'></div> 

@@ -1,10 +1,10 @@
-FROM php:8.3-alpine
+FROM php:8.5-fpm-alpine
 
 LABEL org.opencontainers.image.url="https://github.com/gustavofreze/docker-images"
-LABEL org.opencontainers.image.title="gustavofreze/php:8.3-alpine"
-LABEL org.opencontainers.image.source="https://github.com/gustavofreze/docker-images/blob/main/images/php/8.3/alpine/Dockerfile"
+LABEL org.opencontainers.image.title="gustavofreze/php:8.5-alpine-fpm"
+LABEL org.opencontainers.image.source="https://github.com/gustavofreze/docker-images/blob/main/images/php/8.5/alpine-fpm/Dockerfile"
 LABEL org.opencontainers.image.authors="Gustavo Freze"
-LABEL org.opencontainers.image.description="PHP 8.3 Alpine image for development"
+LABEL org.opencontainers.image.description="PHP 8.5 FPM Alpine image for development"
 LABEL org.opencontainers.image.documentation="https://github.com/gustavofreze/docker-images/blob/main/images/php/README.md"
 
 ENV LANG="C.UTF-8"
@@ -56,7 +56,7 @@ RUN set -eux \
 WORKDIR /var/www/html
 
 RUN set -eux \
-    && curl -sfSL "${CONFIG_BASE_URL}/php-cli.ini" -o "${PHP_INI_DIR}/php.ini" \
+    && curl -sfSL "${CONFIG_BASE_URL}/php-fpm.ini" -o "${PHP_INI_DIR}/php.ini" \
     && curl -sfSL "${CONFIG_BASE_URL}/xdebug.ini" -o "${PHP_INI_DIR}/conf.d/99-xdebug.ini"
 
 EXPOSE 9000
