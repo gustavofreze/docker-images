@@ -19,8 +19,8 @@
 
 ## Supported tags and respective Dockerfile links
 
-[`8.3`](https://github.com/gustavofreze/docker-images/blob/main/php/8.3/alpine/Dockerfile),
-[`8.3-fpm`](https://github.com/gustavofreze/docker-images/blob/main/php/8.3/alpine-fpm/Dockerfile)
+[`8.3-alpine`](https://github.com/gustavofreze/docker-images/blob/main/images/php/8.3/alpine/Dockerfile),
+[`8.3-alpine-fpm`](https://github.com/gustavofreze/docker-images/blob/main/images/php/8.3/alpine-fpm/Dockerfile)
 
 <div id='use'></div> 
 
