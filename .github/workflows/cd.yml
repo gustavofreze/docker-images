@@ -88,7 +88,7 @@ jobs:
           format: sarif
           output: trivy-results.sarif
           severity: CRITICAL,HIGH
-          image-ref: "${{ env.GHCR_REGISTRY }}/${{ github.repository }}/${{ matrix.name }}:${{ matrix.tag }}"
+          image-ref: "${{ env.GHCR_REGISTRY }}/${{ github.repository_owner }}/${{ matrix.name }}:${{ matrix.tag }}"
 
       - uses: github/codeql-action/upload-sarif@v4
         if: always()

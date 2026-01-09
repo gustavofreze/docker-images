@@ -18,8 +18,13 @@ discover-json: ## Output Docker images list as JSON
 	@chmod +x $(DISCOVER_SCRIPT)
 	@$(DISCOVER_SCRIPT) --format=json
 
+.PHONY: lint
+lint: ## Lint all Dockerfiles
+	@echo "Linting Dockerfiles..."
+	@find images -name Dockerfile -exec sh -c 'echo "=== {} ===" && docker run --rm -i hadolint/hadolint < "{}"' \;
+
 .PHONY: build-all
-build-all: ## Build all discovered Docker images locally
+build-all: lint ## Build all discovered Docker images locally
 	@chmod +x $(BUILD_SCRIPT)
 	$(BUILD_SCRIPT)
 
@@ -33,6 +38,10 @@ help:  ## Display this help message
 	@echo ""
 	@echo "$$(printf '$(GREEN)')Discovery$$(printf '$(RESET)')"
 	@grep -E '^(discover|discover-json):.*?## .*$$' $(MAKEFILE_LIST) \
+		| awk 'BEGIN {FS = ":.*?## "}; {printf "$(YELLOW)%-25s$(RESET) %s\n", $$1, $$2}'
+	@echo ""
+	@echo "$$(printf '$(GREEN)')Linting$$(printf '$(RESET)')"
+	@grep -E '^(lint):.*?## .*$$' $(MAKEFILE_LIST) \
 		| awk 'BEGIN {FS = ":.*?## "}; {printf "$(YELLOW)%-25s$(RESET) %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$$(printf '$(GREEN)')Build$$(printf '$(RESET)')"

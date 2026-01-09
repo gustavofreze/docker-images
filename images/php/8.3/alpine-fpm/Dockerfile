@@ -1,33 +1,41 @@
 FROM php:8.3-fpm-alpine
 
-LABEL author="Gustavo Freze" \
-      maintainer="Gustavo Freze" \
-      org.label-schema.name="gustavofreze/php:8.3-fpm" \
-      org.label-schema.usage="https://github.com/gustavofreze/docker-images/blob/main/images/php/README.md" \
-      org.label-schema.vcs-url="https://github.com/gustavofreze/docker-images/blob/main/images/php/8.3/alpine-fpm/Dockerfile" \
-      org.label-schema.schema-version="1.0"
+LABEL org.opencontainers.image.url="https://github.com/gustavofreze/docker-images" \
+      org.opencontainers.image.title="gustavofreze/php:8.3-fpm-alpine" \
+      org.opencontainers.image.source="https://github.com/gustavofreze/docker-images/blob/main/images/php/8.3/alpine-fpm/Dockerfile" \
+      org.opencontainers.image.authors="Gustavo Freze" \
+      org.opencontainers.image.description="PHP 8.3 FPM Alpine image for development" \
+      org.opencontainers.image.documentation="https://github.com/gustavofreze/docker-images/blob/main/images/php/README.md"
 
 ENV LANG="C.UTF-8" \
     LC_ALL="C.UTF-8" \
     PHP_INI_DIR="/usr/local/etc/php"
 
-ARG PHPIZE_DEPS="autoconf dpkg-dev dpkg file g++ gcc libc-dev make pkgconf re2c"
 ARG CONFIG_BASE_URL="https://raw.githubusercontent.com/gustavofreze/docker-images/main/images/php/shared/configs"
 
 RUN set -eux; \
     apk update \
     && apk upgrade --no-cache libsodium \
     && apk add --no-cache \
-      git \
-      bash \
-      libzip \
-      docker-cli \
-      ca-certificates \
+      git=2.52.0-r0 \
+      bash=5.3.3-r1 \
+      libzip=1.11.4-r1 \
+      docker-cli=29.1.3-r0 \
+      ca-certificates=20251003-r0 \
     && apk add --no-cache --virtual .build-deps \
-      $PHPIZE_DEPS \
-      libzip-dev \
-      linux-headers \
-    && docker-php-ext-install -j$(nproc) bcmath pdo pdo_mysql \
+      autoconf=2.72-r1 \
+      dpkg-dev=1.22.21-r0 \
+      dpkg=1.22.21-r0 \
+      file=5.46-r2 \
+      g++=15.2.0-r2 \
+      gcc=15.2.0-r2 \
+      musl-dev=1.2.5-r21 \
+      make=4.4.1-r3 \
+      pkgconf=2.5.1-r0 \
+      re2c=4.3.1-r0 \
+      libzip-dev=1.11.4-r1 \
+      linux-headers=6.16.12-r0 \
+    && docker-php-ext-install -j"$(nproc)" bcmath pdo pdo_mysql \
     && pecl install xdebug \
     && docker-php-ext-enable xdebug \
     && apk del .build-deps \

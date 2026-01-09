@@ -11,6 +11,17 @@ env:
   DOCKER_BUILDKIT: 1
 
 jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Lint Dockerfiles
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          recursive: true
+
   discover:
     name: Discover
     runs-on: ubuntu-latest
