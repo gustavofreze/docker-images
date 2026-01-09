@@ -7,9 +7,6 @@ on:
       - 'images/**/README.md'
   workflow_dispatch:
 
-permissions:
-  packages: write
-
 jobs:
   discover:
     name: Discover
@@ -52,7 +49,7 @@ jobs:
       - name: Update package README
         if: steps.check-readme.outputs.exists == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.DOCKER_IMAGE_PACKAGE_TOKEN }}
         run: |
           OWNER="${{ github.repository_owner }}"
           PACKAGE="${{ matrix.name }}"
@@ -70,13 +67,6 @@ jobs:
             echo "::error::Failed to encode README content"
             exit 1
           fi
-
-          echo "Checking package: ${PACKAGE}"
-          gh api \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "/users/${OWNER}/packages/container/${PACKAGE}" \
-            --jq '.name' || echo "::warning::Package not found or not accessible"
 
           if ! gh api \
             --method PATCH \
