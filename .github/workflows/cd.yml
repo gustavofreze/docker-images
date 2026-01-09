@@ -88,10 +88,28 @@ jobs:
           format: sarif
           output: trivy-results.sarif
           severity: CRITICAL,HIGH
-          image-ref: "${{ env.GHCR_REGISTRY }}/${{ github.repository_owner }}/${{ matrix.name }}:${{ matrix.tag }}"
+          image-ref: "${{ env.GHCR_REGISTRY }}/${{ github.repository }}/${{ matrix.name }}:${{ matrix.tag }}"
 
       - uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: trivy-results.sarif
           category: "trivy-${{ matrix.name }}-${{ matrix.tag }}"
+
+  cleanup:
+    name: Cleanup
+    needs: [ publish, scan ]
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    strategy:
+      matrix:
+        package: [ php, python ]
+    steps:
+      - name: Delete untagged versions
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: ${{ matrix.package }}
+          package-type: container
+          delete-only-untagged-versions: true
+          min-versions-to-keep: 0
