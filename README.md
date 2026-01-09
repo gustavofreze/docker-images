@@ -1,14 +1,29 @@
 # Docker images
 
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
+* [Overview](#overview)
+* [Available images](#images)
+* [License](#license)
+
+<div id='overview'></div> 
+
+## Overview
+
 This repository contains Dockerfiles and examples for building Docker images of some languages and tools for
 development environment.
 
-Use these images as the basis for your dockerfile, and in your final image, it's recommended to add a non-root user.
-Check [best practices for writing Dockerfiles](https://docs.docker.com/develop/develop-images/dockerfile_best-practices).
+<div id='images'></div>
 
-## Images
+## Available images
 
-- [PHP](images/php)
-- [Python](images/python)
+| Language | Documentation                     | Docker Hub                                                          | GitHub Packages                                                                                    |
+|----------|-----------------------------------|---------------------------------------------------------------------|----------------------------------------------------------------------------------------------------|
+| PHP      | [README](images/php/README.md)    | [gustavofreze/php](https://hub.docker.com/r/gustavofreze/php)       | [ghcr.io/gustavofreze/php](https://github.com/gustavofreze/docker-images/pkgs/container/php)       |
+| Python   | [README](images/python/README.md) | [gustavofreze/python](https://hub.docker.com/r/gustavofreze/python) | [ghcr.io/gustavofreze/python](https://github.com/gustavofreze/docker-images/pkgs/container/python) |
 
-Images from this repository are shared on the [Docker Hub](https://hub.docker.com/u/gustavofreze).
+<div id='license'></div>
+
+## License
+
+Collection is licensed under [MIT](LICENSE).

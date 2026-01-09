@@ -62,7 +62,7 @@ Create a `docker-compose.yml`:
 ```yaml
 services:
   php:
-    image: gustavofreze/php:8.5-fpm-alpine
+    image: gustavofreze/php:8.5-alpine-fpm
     volumes:
       - ./src:/var/www/html
     expose:
@@ -74,7 +74,7 @@ services:
       - "80:80"
     volumes:
       - ./src:/var/www/html
-      - ./nginx.conf:/etc/nginx/conf.d/default. conf
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
     depends_on:
       - php
 ```

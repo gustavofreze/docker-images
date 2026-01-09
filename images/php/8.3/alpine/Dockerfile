@@ -1,15 +1,15 @@
 FROM php:8.3-alpine
 
-LABEL org.opencontainers.image.url="https://github.com/gustavofreze/docker-images" \
-      org.opencontainers.image.title="gustavofreze/php:8.3-alpine" \
-      org.opencontainers.image.source="https://github.com/gustavofreze/docker-images/blob/main/images/php/8.3/alpine/Dockerfile" \
-      org.opencontainers.image.authors="Gustavo Freze" \
-      org.opencontainers.image.description="PHP 8.3 Alpine image for development" \
-      org.opencontainers.image.documentation="https://github.com/gustavofreze/docker-images/blob/main/images/php/README.md"
+LABEL org.opencontainers.image.url="https://github.com/gustavofreze/docker-images"
+LABEL org.opencontainers.image.title="gustavofreze/php:8.3-alpine"
+LABEL org.opencontainers.image.source="https://github.com/gustavofreze/docker-images/blob/main/images/php/8.3/alpine/Dockerfile"
+LABEL org.opencontainers.image.authors="Gustavo Freze"
+LABEL org.opencontainers.image.description="PHP 8.3 Alpine image for development"
+LABEL org.opencontainers.image.documentation="https://github.com/gustavofreze/docker-images/blob/main/images/php/README.md"
 
-ENV LANG="C.UTF-8" \
-    LC_ALL="C.UTF-8" \
-    PHP_INI_DIR="/usr/local/etc/php"
+ENV LANG="C.UTF-8"
+ENV LC_ALL="C.UTF-8"
+ENV PHP_INI_DIR="/usr/local/etc/php"
 
 ARG CONFIG_BASE_URL="https://raw.githubusercontent.com/gustavofreze/docker-images/main/images/php/shared/configs"
 
