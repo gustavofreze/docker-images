@@ -2,8 +2,9 @@ FROM python:3.14-alpine
 
 LABEL org.opencontainers.image.url="https://github.com/gustavofreze/docker-images"
 LABEL org.opencontainers.image.title="gustavofreze/python:3.14-alpine"
-LABEL org.opencontainers.image.source="https://github.com/gustavofreze/docker-images/blob/main/images/python/3.14/alpine/Dockerfile"
+LABEL org.opencontainers.image.source="https://github.com/gustavofreze/docker-images"
 LABEL org.opencontainers.image.authors="Gustavo Freze"
+LABEL org.opencontainers.image.licenses="MIT"
 LABEL org.opencontainers.image.description="Python 3.14 Alpine image for development"
 LABEL org.opencontainers.image.documentation="https://github.com/gustavofreze/docker-images/blob/main/images/python/README.md"
 

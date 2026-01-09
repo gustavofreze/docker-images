@@ -2,8 +2,9 @@ FROM php:8.5-fpm-alpine
 
 LABEL org.opencontainers.image.url="https://github.com/gustavofreze/docker-images"
 LABEL org.opencontainers.image.title="gustavofreze/php:8.5-alpine-fpm"
-LABEL org.opencontainers.image.source="https://github.com/gustavofreze/docker-images/blob/main/images/php/8.5/alpine-fpm/Dockerfile"
+LABEL org.opencontainers.image.source="https://github.com/gustavofreze/docker-images"
 LABEL org.opencontainers.image.authors="Gustavo Freze"
+LABEL org.opencontainers.image.licenses="MIT"
 LABEL org.opencontainers.image.description="PHP 8.5 FPM Alpine image for development"
 LABEL org.opencontainers.image.documentation="https://github.com/gustavofreze/docker-images/blob/main/images/php/README.md"
 
@@ -15,7 +16,7 @@ ARG CONFIG_BASE_URL="https://raw.githubusercontent.com/gustavofreze/docker-image
 
 RUN set -eux; \
     apk update \
-    && apk upgrade --no-cache libsodium \
+    && apk upgrade --no-cache \
     && apk add --no-cache \
       git=2.52.0-r0 \
       bash=5.3.3-r1 \
