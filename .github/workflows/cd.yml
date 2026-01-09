@@ -75,7 +75,7 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
 
   scan:
-    name: "Scan ${{ matrix.name }}: ${{ matrix.tag }}"
+    name: "Scan ${{ matrix.name }}:${{ matrix.tag }}"
     needs: [ discover, publish ]
     runs-on: ubuntu-latest
     continue-on-error: true
