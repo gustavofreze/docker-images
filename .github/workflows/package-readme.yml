@@ -22,7 +22,7 @@ jobs:
       - id: set-matrix
         run: |
           set -e
-          PACKAGES=$(find images -maxdepth 1 -mindepth 1 -type d -exec basename {} \; | jq -R -s -c 'split("\n") | map(select(. != "")) | map({name: . })')
+          PACKAGES=$(find images -maxdepth 1 -mindepth 1 -type d -exec basename {} \; | jq -R -s -c 'split("\n") | map(select(. != "")) | map({name: .})')
           echo "matrix=$PACKAGES" >> $GITHUB_OUTPUT
 
   update-readme:
@@ -68,11 +68,19 @@ jobs:
             exit 1
           fi
 
+          # Debug: Check package exists
+          echo "Checking package: ${{ matrix.name }}"
+          gh api \
+            -H "Accept: application/vnd. github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /users/${{ github.repository_owner }}/packages/container/${{ matrix.name }} \
+            --jq '.name' || echo "::warning::Package not found or not accessible"
+
           if ! gh api \
             --method PATCH \
-            -H "Accept:  application/vnd. github+json" \
+            -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            /user/packages/container/${{ matrix.name }} \
+            /users/${{ github.repository_owner }}/packages/container/${{ matrix.name }} \
             --raw-field readme="$README_CONTENT"; then
             echo "::error::Failed to update package README"
             exit 1
