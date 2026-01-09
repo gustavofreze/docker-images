@@ -30,7 +30,7 @@ jobs:
           echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
 
   rebuild:
-    name: "Rebuild ${{ matrix.name }}: ${{ matrix.tag }}"
+    name: "Rebuild ${{ matrix.name }}:${{ matrix.tag }}"
     needs: discover
     runs-on: ubuntu-latest
     strategy:
