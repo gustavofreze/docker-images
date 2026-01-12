@@ -44,7 +44,7 @@ RUN set -eux; \
     && rm -rf /var/www/* \
     && mkdir -p /var/www/html
 
-COPY --from=composer:2.7 /usr/bin/composer /usr/local/bin/composer
+COPY --from=composer:2.9 /usr/bin/composer /usr/local/bin/composer
 
 RUN set -eux \
     && git config --global --add safe.directory '*' \
