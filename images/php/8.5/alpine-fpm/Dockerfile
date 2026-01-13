@@ -48,11 +48,7 @@ COPY --from=composer:2.9 /usr/bin/composer /usr/local/bin/composer
 
 RUN set -eux \
     && git config --global --add safe.directory '*' \
-    && composer config --global github-protocols https \
-    && curl -sfSL https://phpmd.org/static/latest/phpmd.phar -o /usr/local/bin/phpmd \
-    && curl -sfSL https://squizlabs.github.io/PHP_CodeSniffer/phpcs.phar -o /usr/local/bin/phpcs \
-    && curl -sfSL https://squizlabs.github.io/PHP_CodeSniffer/phpcbf.phar -o /usr/local/bin/phpcbf \
-    && chmod +x /usr/local/bin/phpmd /usr/local/bin/phpcs /usr/local/bin/phpcbf
+    && composer config --global github-protocols https
 
 WORKDIR /var/www/html
 

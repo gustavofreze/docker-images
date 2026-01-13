@@ -98,22 +98,6 @@ Extensions and tools added to this image.
 [Xdebug](https://xdebug.org) is an extension for PHP, and provides a range of features to improve the PHP development
 experience.
 
-<div id='code_sniffer'></div> 
-
-### CodeSniffer
-
-[CodeSniffer](https://github.com/squizlabs/PHP_CodeSniffer) is a set of two PHP scripts. The main phpcs script that
-tokenizes PHP, JavaScript and CSS files to detect violations of a defined coding standard, and a second phpcbf script to
-automatically correct coding standard violations. CodeSniffer is an essential development tool that ensures your code
-remains clean and consistent.
-
-<div id='mess_detector'></div> 
-
-### Mess Detector
-
-[PHPMD](https://phpmd.org) is a mature project and provides a diverse set of pre-defined rules to detect code smells and
-possible errors within the analyzed source code.
-
 <div id='composer'></div> 
 
 ### Composer
