@@ -18,24 +18,24 @@ RUN set -eux; \
     apk update \
     && apk upgrade --no-cache \
     && apk add --no-cache \
-      git=2.52.0-r0 \
-      bash=5.3.3-r1 \
-      libzip=1.11.4-r1 \
-      docker-cli=29.1.3-r0 \
-      ca-certificates=20251003-r0 \
+      'git~2.52.0' \
+      'bash~5.3.3' \
+      'libzip~1.11.4' \
+      'docker-cli~29.1.3' \
+      'ca-certificates~20251003' \
     && apk add --no-cache --virtual .build-deps \
-      autoconf=2.72-r1 \
-      dpkg-dev=1.22.21-r0 \
-      dpkg=1.22.21-r0 \
-      file=5.46-r2 \
-      g++=15.2.0-r2 \
-      gcc=15.2.0-r2 \
-      musl-dev=1.2.5-r21 \
-      make=4.4.1-r3 \
-      pkgconf=2.5.1-r0 \
-      re2c=4.3.1-r0 \
-      libzip-dev=1.11.4-r1 \
-      linux-headers=6.16.12-r0 \
+      'autoconf~2.72' \
+      'dpkg-dev~1.22.21' \
+      'dpkg~1.22.21' \
+      'file~5.46' \
+      'g++~15.2.0' \
+      'gcc~15.2.0' \
+      'musl-dev~1.2.5' \
+      'make~4.4.1' \
+      'pkgconf~2.5.1' \
+      're2c~4.3.1' \
+      'libzip-dev~1.11.4' \
+      'linux-headers~6.16.12' \
     && docker-php-ext-install -j"$(nproc)" bcmath pdo pdo_mysql \
     && pecl install xdebug \
     && docker-php-ext-enable xdebug \

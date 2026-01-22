@@ -1,6 +1,7 @@
 SCRIPTS_DIR := scripts
 BUILD_SCRIPT := $(SCRIPTS_DIR)/build-images.sh
 DISCOVER_SCRIPT := $(SCRIPTS_DIR)/discover-images.sh
+HADOLINT_CONFIG := .hadolint.yaml
 
 RESET := \033[0m
 GREEN := \033[0;32m
@@ -21,7 +22,7 @@ discover-json: ## Output Docker images list as JSON
 .PHONY: lint
 lint: ## Lint all Dockerfiles
 	@echo "Linting Dockerfiles..."
-	@find images -name Dockerfile -exec sh -c 'echo "=== {} ===" && docker run --rm -i hadolint/hadolint < "{}"' \;
+	@find images -name Dockerfile -exec sh -c 'echo "=== {} ===" && docker run --rm -i -v "$(CURDIR)/$(HADOLINT_CONFIG):/hadolint.yaml:ro" hadolint/hadolint hadolint --config /hadolint.yaml - < "{}"' \;
 
 .PHONY: build-all
 build-all: lint ## Build all discovered Docker images locally
