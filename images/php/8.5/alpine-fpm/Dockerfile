@@ -54,6 +54,7 @@ WORKDIR /var/www/html
 
 RUN set -eux \
     && curl -sfSL "${CONFIG_BASE_URL}/php-fpm.ini" -o "${PHP_INI_DIR}/php.ini" \
-    && curl -sfSL "${CONFIG_BASE_URL}/xdebug.ini" -o "${PHP_INI_DIR}/conf.d/99-xdebug.ini"
+    && curl -sfSL "${CONFIG_BASE_URL}/xdebug.ini" -o "${PHP_INI_DIR}/conf.d/99-xdebug.ini" \
+    && curl -sfSL "${CONFIG_BASE_URL}/opcache.ini" -o "${PHP_INI_DIR}/conf.d/99-opcache.ini"
 
 EXPOSE 9000
