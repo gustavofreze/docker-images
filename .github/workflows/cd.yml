@@ -6,7 +6,6 @@ on:
     paths:
       - 'images/**'
       - '.github/workflows/cd.yml'
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -80,33 +79,27 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true
     permissions:
+      contents: read
       packages: read
       security-events: write
     strategy:
       matrix:
         include: ${{ fromJson(needs.discover.outputs.matrix) }}
     steps:
-      - name: Login to GitHub container registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.GHCR_REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@v6
 
       - name: Scan image
         uses: aquasecurity/trivy-action@0.33.1
         with:
           format: sarif
           output: trivy-results.sarif
+          version: v0.68.2
           severity: CRITICAL,HIGH
           image-ref: "${{ env.GHCR_REGISTRY }}/${{ github.repository_owner }}/${{ matrix.name }}:${{ matrix.tag }}"
-
-      - name: Upload scan results
-        uses: github/codeql-action/upload-sarif@v4
-        if: always()
-        with:
-          sarif_file: trivy-results.sarif
-          category: "trivy-${{ matrix.name }}-${{ matrix.tag }}"
+          limit-severities-for-sarif: true
+        env:
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
 
   cleanup:
     name: Cleanup
@@ -123,5 +116,5 @@ jobs:
         with:
           package-name: ${{ matrix.package }}
           package-type: container
-          delete-only-untagged-versions: true
           min-versions-to-keep: 0
+          delete-only-untagged-versions: true
