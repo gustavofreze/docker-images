@@ -47,8 +47,8 @@ jobs:
         include: ${{ fromJson(needs.discover.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v6
-      - uses: docker/setup-qemu-action@v3
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
 
       - name: Build image
         uses: docker/build-push-action@v6
@@ -63,7 +63,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Scan image
-        uses: aquasecurity/trivy-action@0.34.1
+        uses: aquasecurity/trivy-action@0.34.2
         with:
           image-ref: ${{ matrix.name }}:${{ matrix.tag }}
           format: table
