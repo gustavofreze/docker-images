@@ -1,5 +1,12 @@
 name: Security rebuild
 
+# Weekly refresh of the floating aliases against a freshly pulled upstream base, so a base layer
+# patched since the last release is picked up without waiting for a code change.
+#
+# Only the floating alias (<upstream-minor>-<role>) is repushed. The immutable versioned tag is never
+# rewritten: a project pinned to it keeps the exact bytes it reviewed, and the scan job below reports
+# on those pinned tags so a finding turns into a VERSION bump instead of a silent swap.
+
 on:
   schedule:
     - cron: '0 6 * * 1'
@@ -7,8 +14,6 @@ on:
 
 permissions:
   contents: read
-  packages: write
-  security-events: write
 
 env:
   GHCR_REGISTRY: ghcr.io
@@ -20,19 +25,38 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
+      families: ${{ steps.set-matrix.outputs.families }}
     steps:
       - uses: actions/checkout@v7
 
       - id: set-matrix
         run: |
-          chmod +x ./scripts/discover-images.sh
-          MATRIX=$(./scripts/discover-images.sh --format=json)
-          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+          echo "matrix=$(./scripts/discover-images.sh --format=json)" >> "$GITHUB_OUTPUT"
+          echo "families=$(./scripts/discover-images.sh --format=families)" >> "$GITHUB_OUTPUT"
 
-  rebuild:
-    name: "Rebuild ${{ matrix.name }}:${{ matrix.tag }}"
+  review:
+    name: "Review ${{ matrix.family }}"
     needs: discover
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        family: ${{ fromJson(needs.discover.outputs.families) }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Run the full gate
+        run: make review-${{ matrix.family }}
+
+  rebuild:
+    name: "Rebuild ${{ matrix.family }}:${{ matrix.alias }}"
+    needs: [ discover, review ]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
     strategy:
       fail-fast: false
       matrix:
@@ -55,34 +79,41 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push Docker image
+      - name: Rebuild from a freshly pulled base and repoint the alias
         uses: docker/build-push-action@v7
         with:
           push: true
-          file: ${{ matrix.context }}/Dockerfile
-          context: ${{ matrix.context }}
-          platforms: linux/amd64,linux/arm64
-          no-cache: true
           pull: true
+          no-cache: true
+          context: ${{ matrix.context }}
+          file: ${{ matrix.context }}/Dockerfile
+          target: ${{ matrix.target }}
+          platforms: linux/amd64,linux/arm64
+          provenance: mode=max
+          sbom: true
           tags: |
-            ${{ secrets.DOCKER_HUB_USERNAME }}/${{ matrix.name }}:${{ matrix.tag }}
-            ${{ env.GHCR_REGISTRY }}/${{ github.repository_owner }}/${{ matrix.name }}:${{ matrix.tag }}
+            ${{ secrets.DOCKER_HUB_USERNAME }}/${{ matrix.family }}:${{ matrix.alias }}
+            ${{ env.GHCR_REGISTRY }}/${{ github.repository_owner }}/${{ matrix.family }}:${{ matrix.alias }}
           labels: |
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.version=${{ matrix.version }}
             org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
 
   scan:
-    name: "Scan ${{ matrix.name }}:${{ matrix.tag }}"
+    name: "Scan ${{ matrix.family }}:${{ matrix.tag }}"
     needs: [ discover, rebuild ]
     runs-on: ubuntu-latest
-    continue-on-error: true
     permissions:
+      contents: read
       packages: read
       security-events: write
     strategy:
+      fail-fast: false
       matrix:
         include: ${{ fromJson(needs.discover.outputs.matrix) }}
     steps:
+      - uses: actions/checkout@v7
+
       - name: Login to GitHub container registry
         uses: docker/login-action@v4.5.2
         with:
@@ -90,35 +121,41 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Scan image
+      # The pinned versioned tag is what projects actually consume, so it is what the weekly report
+      # covers. A finding here is the signal to bump the build unit's VERSION.
+      - name: Scan the published versioned tag
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           format: sarif
           output: trivy-results.sarif
           severity: CRITICAL,HIGH
-          image-ref: "${{ env.GHCR_REGISTRY }}/${{ github.repository_owner }}/${{ matrix.name }}:${{ matrix.tag }}"
+          image-ref: "${{ env.GHCR_REGISTRY }}/${{ github.repository_owner }}/${{ matrix.family }}:${{ matrix.tag }}"
+          limit-severities-for-sarif: true
+        env:
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload scan results
         uses: github/codeql-action/upload-sarif@v4.37.3
         if: always()
         with:
           sarif_file: trivy-results.sarif
-          category: "trivy-${{ matrix.name }}-${{ matrix.tag }}"
+          category: "trivy-${{ matrix.family }}-${{ matrix.target }}"
 
   cleanup:
     name: Cleanup
-    needs: [ rebuild, scan ]
+    needs: [ discover, rebuild, scan ]
     runs-on: ubuntu-latest
     permissions:
       packages: write
     strategy:
       matrix:
-        package: [ php, python ]
+        package: ${{ fromJson(needs.discover.outputs.families) }}
     steps:
       - name: Delete untagged versions
         uses: actions/delete-package-versions@v5
         with:
           package-name: ${{ matrix.package }}
           package-type: container
-          delete-only-untagged-versions: true
           min-versions-to-keep: 0
+          delete-only-untagged-versions: true

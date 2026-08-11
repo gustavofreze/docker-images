@@ -5,6 +5,9 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    # Mirrors the repository dependency policy: never adopt a release published less than 7 days ago.
+    cooldown:
+      default-days: 7
     commit-message:
       prefix: "build"
     labels:
@@ -12,5 +15,23 @@ updates:
       - "github-actions"
     groups:
       github-actions:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "docker"
+    directories:
+      - "/images/php/8.5"
+      - "/images/python/3.14"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: "build"
+    labels:
+      - "dependencies"
+      - "docker"
+    groups:
+      docker:
         patterns:
           - "*"
