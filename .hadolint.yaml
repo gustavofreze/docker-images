@@ -1,18 +1,14 @@
-# Dockerfile lint configuration for the review gate. ShellCheck runs on every RUN body, so the
-# shell conventions are enforced here too. Only the rules below are relaxed, each with a reason and
-# the date it was accepted (2026-08-11). Do not widen this list to silence a fixable finding.
+# Lint configuration for the review gate. ShellCheck runs on every RUN body. Only the rules below
+# are relaxed, each with a reason and the date it was accepted (2026-08-11). Do not widen this list
+# to silence a fixable finding.
 ignored:
-  # DL3018: "Pin versions in apk add". Alpine package versions are not addressable across the
-  # lifetime of a pinned base image (the Alpine repository is rolling and drops old versions), so a
-  # pinned apk version breaks reproducibility rather than improving it: the build starts failing the
-  # day the index moves. The exact upstream image tag (patch version and distro release) is this
-  # repository's reproducibility boundary, not the apk set. Everything fetched from outside the
-  # Alpine index (Composer, Xdebug, CodeSniffer, Mess Detector, pip, Poetry, debugpy) is pinned to an
-  # exact version, and every remote artifact is checksum verified.
+  # DL3018 "Pin versions in apk add". The Alpine repository is rolling and drops old versions, so a
+  # pinned apk version breaks the build the day the index moves rather than improving anything. The
+  # exact upstream image tag is the reproducibility boundary here, not the apk set. Everything
+  # fetched from outside that index is pinned exactly and checksum verified.
   - DL3018
 
-  # SC2086: "Double quote to prevent globbing and word splitting". The only occurrences are the
+  # SC2086 "Double quote to prevent globbing and word splitting". The only occurrences are the
   # deliberate word split of ${PHPIZE_DEPS}, a space-separated package list that must expand into
-  # separate arguments to `apk add`. Quoting it would pass one bogus package name and break the
-  # build. Every other ShellCheck rule stays active on the RUN bodies.
+  # separate arguments. Quoting it would pass one bogus package name.
   - SC2086

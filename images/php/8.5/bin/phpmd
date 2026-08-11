@@ -4,9 +4,8 @@ set -euo pipefail
 # phpmd: Runs the pinned PHP Mess Detector phar with deprecation notices silenced.
 #
 # PHPMD 2.15.0 is the newest release and predates PHP 8.4, so loading its own phar raises a wall of
-# deprecation notices that have nothing to do with the code under analysis. They are silenced for
-# this process only: the analyzer still reports every rule violation it finds, and no other PHP
-# process in the image is affected.
+# deprecation notices unrelated to the code under analysis. Silencing them here affects this process
+# only, and the analyzer still reports every rule violation it finds.
 #
 # Usage: phpmd <arguments passed through to PHP Mess Detector>
 

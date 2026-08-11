@@ -1,11 +1,9 @@
 name: Security rebuild
 
 # Weekly refresh of the floating aliases against a freshly pulled upstream base, so a base layer
-# patched since the last release is picked up without waiting for a code change.
-#
-# Only the floating alias (<upstream-minor>-<role>) is repushed. The immutable versioned tag is never
-# rewritten: a project pinned to it keeps the exact bytes it reviewed, and the scan job below reports
-# on those pinned tags so a finding turns into a VERSION bump instead of a silent swap.
+# patched since the last release is picked up without waiting for a code change. Only the alias is
+# repushed: a project pinned to a versioned tag keeps the exact bytes it reviewed, and the scan job
+# reports on those pinned tags so a finding turns into a VERSION bump, not a silent swap.
 
 on:
   schedule:
@@ -121,8 +119,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # The pinned versioned tag is what projects actually consume, so it is what the weekly report
-      # covers. A finding here is the signal to bump the build unit's VERSION.
       - name: Scan the published versioned tag
         uses: aquasecurity/trivy-action@v0.36.0
         with:

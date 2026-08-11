@@ -33,31 +33,31 @@ PYTHON_DEVELOPMENT_TAG := $(PYTHON_NAMESPACE):$(PYTHON_MINOR)-development-$(PYTH
 PYTHON_CLI_TAG         := $(PYTHON_NAMESPACE):$(PYTHON_MINOR)-cli-$(PYTHON_VERSION)
 
 # ---- Publication ------------------------------------------------------------
-# Immutable version tags only. Docker Hub is the default registry, override for any other
-# (REGISTRY=ghcr.io publishes to the GitHub container registry).
+# Docker Hub by default, override for any other registry (REGISTRY=ghcr.io).
 REGISTRY ?= docker.io
 
 # ---- Discovered Dockerfiles (one per build unit, never hardcoded) ------------
 DOCKERFILES := $(wildcard images/*/*/Dockerfile)
 
 # ---- Shared smoke library ---------------------------------------------------
-# Host-side helpers every family's scripts/smoke sources. Exported so each smoke invocation below
-# resolves it by absolute path, never a fragile relative path or an implicit working directory.
+# Exported so each smoke invocation resolves it by absolute path, never an implicit working
+# directory.
 SMOKE_LIB := $(CURDIR)/scripts/smoke-lib.sh
 export SMOKE_LIB
 
 # ---- Validators (containerized, nothing installed on the host) --------------
-# Each pins an exact tool version, coherent with the repository's upstream pin policy.
+# Each pins an exact tool version, coherent with the repository's upstream pin policy. The DOCKLE
+# variants below differ only in which CIS checks they exempt, and each exemption is justified where
+# the target it covers is audited.
 
-# Vulnerability scanner: fails on fixable HIGH and CRITICAL findings.
 TRIVY_RUN := docker run --rm \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -v gustavofreze-trivy-cache:/root/.cache/trivy \
     aquasec/trivy:0.71.1 image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1
 
-# Same scanner, plus the accepted findings of the Python family. Scoped to the one family it
-# applies to, never repository wide, and each entry in that file carries a justification and a
-# revisit condition.
+# Same scanner plus the accepted findings of the Python family, scoped to the one family it applies
+# to and never repository wide. Each entry in that file carries a justification and a revisit
+# condition.
 TRIVY_RUN_PYTHON := docker run --rm \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -v gustavofreze-trivy-cache:/root/.cache/trivy \
@@ -65,46 +65,33 @@ TRIVY_RUN_PYTHON := docker run --rm \
     aquasec/trivy:0.71.1 image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 \
     --ignorefile /python.trivyignore
 
-# Dockerfile linter: reads the Dockerfile on stdin and runs ShellCheck on every RUN body.
 HADOLINT_RUN := docker run --rm -i \
     -v $(CURDIR)/.hadolint.yaml:/.hadolint.yaml:ro \
     hadolint/hadolint:v2.12.0-alpine hadolint --config /.hadolint.yaml -
 
-# Image CIS auditor: fails at WARN and above. Every service target is audited with this strict
-# runner, so the CIS non-root check (CIS-DI-0001) and the health check requirement (CIS-DI-0006)
-# both stay active on it.
+# Strict: non-root (CIS-DI-0001) and health check (CIS-DI-0006) both required.
 DOCKLE_RUN := docker run --rm \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -w / -e DOCKLE_EXIT_LEVEL=warn \
     goodwithtech/dockle:v0.4.14 --exit-code 1
 
-# CIS auditor for the base targets that carry no long-running process. It exempts only the health
-# check requirement (CIS-DI-0006), per image and nothing else, so every other CIS finding still
-# blocks and the non-root check stays active. The exempt targets are the PHP and Python `builder`
-# toolchains, discarded in the multi-stage application build, and the Python `runtime`, a language
-# base whose consuming application declares the health check for the process it actually runs.
-# Revisit an entry here only when that target gains a process of its own to probe.
+# Health check exempt, for a target that starts no process of its own. Non-root stays required.
 DOCKLE_RUN_NO_PROCESS := docker run --rm \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -w / -e DOCKLE_EXIT_LEVEL=warn -e DOCKLE_IGNORES=CIS-DI-0006 \
     goodwithtech/dockle:v0.4.14 --exit-code 1
 
-# CIS auditor for the targets that legitimately keep root as the last user. It exempts the non-root
-# check (CIS-DI-0001) alongside the health check, per image and nothing else. The exempt targets are
-# the PHP and Python `cli` local tooling images: one-shot, no exposed port, root so they can write
-# into a bind mount owned by the caller. Revisit an entry here only when tightening that target's
-# runtime USER.
+# Non-root exempt too, for a cli tooling image that must write into a caller-owned bind mount.
 DOCKLE_RUN_ROOT := docker run --rm \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -w / -e DOCKLE_EXIT_LEVEL=warn -e DOCKLE_IGNORES=CIS-DI-0001,CIS-DI-0006 \
     goodwithtech/dockle:v0.4.14 --exit-code 1
 
-# One inherited finding, accepted for the Python family only and named here rather than in a
-# repository-wide config. The python:alpine base compiles the interpreter and then pins its shared
-# library dependencies with `xargs -rt apk add --no-network --virtual .python-rundeps`. Dockle flags
-# any `apk add` missing --no-cache (DKL-DI-0004), but --no-network means no index is fetched and no
-# cache is written, so there is nothing for --no-cache to remove. The command lives in a base layer
-# this repository cannot rewrite, and every `apk add` authored here does pass --no-cache.
+# One inherited finding, accepted for the Python family only. The python:alpine base pins the shared
+# libraries of the interpreter it just compiled with `xargs -rt apk add --no-network --virtual
+# .python-rundeps`. Dockle flags any `apk add` missing --no-cache (DKL-DI-0004), but --no-network
+# fetches no index and writes no cache, so there is nothing to remove. It lives in a base layer this
+# repository cannot rewrite, and every `apk add` authored here does pass --no-cache.
 # Accepted 2026-08-11. Revisit when the upstream image changes that command.
 PYTHON_INHERITED_IGNORES := DKL-DI-0004
 
@@ -183,9 +170,8 @@ scan-php: ## @verify Scan the PHP images for HIGH and CRITICAL vulnerabilities
 
 .PHONY: scan-python
 scan-python: ## @verify Scan the Python images for HIGH and CRITICAL vulnerabilities
-	@# The production runtime carries no installer, so it is scanned with no ignore file at all: a
-	@# change that puts pip back into production fails here instead of inheriting an exemption. The
-	@# three targets that must carry pip are scanned with the family-scoped accepted findings.
+	@# The runtime carries no installer, so it is scanned with no ignore file at all: a change that
+	@# puts pip back into production fails here rather than inheriting an exemption.
 	@$(TRIVY_RUN) $(PYTHON_RUNTIME_TAG)
 	@$(TRIVY_RUN_PYTHON) $(PYTHON_DEVELOPMENT_TAG)
 	@$(TRIVY_RUN_PYTHON) $(PYTHON_BUILDER_TAG)
@@ -196,9 +182,7 @@ audit: audit-php audit-python ## @verify Audit every image against the CIS Docke
 
 .PHONY: audit-php
 audit-php: ## @verify Audit the PHP images against the CIS Docker Benchmark
-	@# runtime and development are service targets: non-root with a health check, audited strictly.
-	@# builder drops to www-data but runs no process, so only the health check is exempt. cli is the
-	@# root tooling image, audited with both exemptions.
+	@# builder drops to www-data but runs no process, so only its health check is exempt.
 	@$(DOCKLE_RUN) $(PHP_RUNTIME_TAG)
 	@$(DOCKLE_RUN) $(PHP_DEVELOPMENT_TAG)
 	@$(DOCKLE_RUN_NO_PROCESS) $(PHP_BUILDER_TAG)
@@ -206,9 +190,8 @@ audit-php: ## @verify Audit the PHP images against the CIS Docker Benchmark
 
 .PHONY: audit-python
 audit-python: ## @verify Audit the Python images against the CIS Docker Benchmark
-	@# No Python target starts a process of its own, so the health check is exempt on all of them.
-	@# runtime, development, and builder still drop to the app user and are audited non-root. cli is
-	@# the root tooling image, audited with both exemptions.
+	@# No Python target starts a process of its own, so the health check is exempt on all four.
+	@# The first three still drop to the app user and are audited non-root.
 	@$(DOCKLE_RUN_PYTHON) $(PYTHON_RUNTIME_TAG)
 	@$(DOCKLE_RUN_PYTHON) $(PYTHON_DEVELOPMENT_TAG)
 	@$(DOCKLE_RUN_PYTHON) $(PYTHON_BUILDER_TAG)
@@ -254,11 +237,9 @@ review-python: lint-python build-python scan-python audit-python efficiency-pyth
 .PHONY: verify
 verify: review ## @verify Alias of review: run the full local gate
 
-# Publication is gated by the review chain as a make dependency, not by convention: each
-# publish-<family> lists review-<family> as a prerequisite, so a push only happens after lint,
-# build, scan, audit, efficiency, and smoke all passed for the family being published. Only the
-# immutable versioned tags are pushed. The floating aliases are local convenience and the CD
-# workflow owns their publication.
+# Gated by the review chain as a make dependency, not by convention: each publish-<family> lists
+# review-<family> as a prerequisite, so a push cannot happen before that family passed the gate. Only
+# the immutable versioned tags go out here, the CD workflow owns the floating aliases.
 .PHONY: publish
 publish: publish-php publish-python ## @publish Push every family's versioned tags to REGISTRY, each gated by its review chain
 

@@ -4,11 +4,9 @@
 declare(strict_types=1);
 
 /**
- * Container health check for the PHP-FPM base images. Succeeds when the local PHP-FPM master
- * accepts a TCP connection on port 9000, fails otherwise. Pure PHP on purpose: no extra package
- * enters the runtime surface just to probe a socket.
- *
- * An image that moves the pool to a Unix socket replaces this probe with its own.
+ * Container health check for the PHP-FPM base images. Succeeds when the local master accepts a TCP
+ * connection on port 9000. Pure PHP on purpose: no extra package enters the runtime just to probe a
+ * socket. An image that moves the pool to a Unix socket replaces this probe with its own.
  */
 $connection = @fsockopen('127.0.0.1', 9000, $errorCode, $errorMessage, 2.0);
 

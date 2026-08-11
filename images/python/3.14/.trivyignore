@@ -1,27 +1,21 @@
-# Accepted vulnerability findings for the Python 3.14 build unit, scoped to this family and nothing
-# else. Both entries are reported from the CycloneDX BOM that pip 26.2 ships at
-# pip/_vendor/bom.cdx.json, which lists pip's private vendored dependencies.
+# Accepted findings for the Python 3.14 build unit, scoped to this family and nothing else. Both are
+# reported from the CycloneDX BOM pip 26.2 ships at pip/_vendor/bom.cdx.json, and both are accepted
+# only on the targets that must carry pip (builder, development, cli). The runtime uninstalls pip and
+# is scanned with no ignore file, so putting an installer back into production fails the gate.
 #
-# They are accepted only on the targets that must carry pip (builder, development, cli). The
-# production runtime target uninstalls pip entirely and is scanned with no ignore file, so a change
-# that puts an installer back into production fails the gate instead of inheriting these entries.
+# pip 26.1.2, the version the upstream image ships, vendors the same two versions but ships no BOM,
+# so it scans clean while carrying identical code. Pinning forward to 26.2 is deliberate: same risk,
+# disclosed here instead of hidden by a scanner blind spot.
 #
-# Note that pip 26.1.2, the version the upstream python image ships, vendors the very same two
-# versions but ships no BOM, so it scans clean while carrying identical code. Pinning pip forward to
-# 26.2 is deliberate: the risk is the same either way and this way it is disclosed here rather than
-# hidden by a scanner blind spot.
-#
-# Accepted 2026-08-11. Revisit when a pip release older than the 7-day dependency cooldown vendors
-# msgpack >= 1.2.1 and declares setuptools >= 78.1.1. Drop the entry and bump PIP_VERSION.
+# Accepted 2026-08-11. Revisit when a pip release older than the 7-day cooldown vendors
+# msgpack >= 1.2.1 and declares setuptools >= 78.1.1, then drop the entry and bump PIP_VERSION.
 
-# msgpack 1.1.2, out-of-bounds read and crash on Unpacker reuse (GHSA-6v7p-g79w-8964). Present on
-# disk at pip/_vendor/msgpack, where it backs the CacheControl HTTP cache of pip. Every image in
-# this repository sets PIP_NO_CACHE_DIR=1, so that cache is off and the decoder is never fed remote
-# bytes. There is no pip release that vendors the fixed 1.2.1.
+# msgpack 1.1.2, out-of-bounds read on Unpacker reuse. On disk at pip/_vendor/msgpack, backing the
+# CacheControl HTTP cache, which PIP_NO_CACHE_DIR=1 disables in every image here. No pip release
+# vendors the fixed 1.2.1.
 GHSA-6v7p-g79w-8964
 
-# setuptools 70.3.0, path traversal in PackageIndex (CVE-2025-47273). Declared in pip's vendor
-# manifest, but the setuptools package is not actually on disk: pip vendors only the pkg_resources
-# subpackage, and package_index.py, the file the advisory covers, is absent from the image. The
-# finding is a manifest artifact with no vulnerable code behind it.
+# setuptools 70.3.0, path traversal in PackageIndex. Declared in pip's vendor manifest, but the
+# package is not on disk: pip vendors only pkg_resources, and package_index.py is absent. A manifest
+# artifact with no vulnerable code behind it.
 CVE-2025-47273

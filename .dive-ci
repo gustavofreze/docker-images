@@ -1,16 +1,14 @@
-# Layer-efficiency thresholds for the review gate, applied to every built image.
+# Layer-efficiency thresholds for the review gate.
 #
-# Baseline calibrated 2026-08-11 against the images this repository produces, which measured between
-# 96.6% and 99.4% efficient with 0.6 MB to 12 MB wasted. The floor values sit just below the least
-# efficient target, so a gross regression (an unpruned build dependency, a forgotten cache) fails
-# while the known, deliberate waste passes. A change that widens waste beyond these bounds is a
-# signal to prune the RUN, not to loosen a threshold.
+# Calibrated 2026-08-11 against the images here, which measured 96.6% to 99.4% efficient with 0.6 MB
+# to 12 MB wasted. The floors sit just below the least efficient target, so a gross regression (an
+# unpruned build dependency, a forgotten cache) fails while the known waste passes. A change that
+# widens waste past these bounds is a signal to prune the RUN, not to loosen a threshold.
 rules:
-  # Fail when the image efficiency (unique bytes over total bytes) drops below this fraction.
+  # Unique bytes over total bytes.
   lowestEfficiency: 0.95
 
-  # Fail when the total wasted space meets or exceeds this size.
   highestWastedBytes: 20MB
 
-  # Fail when wasted space meets or exceeds this fraction of the bytes the build itself added.
+  # Wasted space as a fraction of the bytes the build itself added.
   highestUserWastedPercent: 0.10

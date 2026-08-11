@@ -4,9 +4,8 @@ set -euo pipefail
 # discover-images.sh: Enumerates every build unit under images/ and the tags it publishes.
 #
 # A build unit is a directory images/<family>/<upstream-minor>/ holding one multi-target Dockerfile
-# and a VERSION file. Each build target declared in that Dockerfile becomes one entry, carrying the
-# immutable versioned tag and the floating alias that tracks it. This script is the single source
-# the CI and CD workflows build their matrix from, so the workflows never restate the target list.
+# and a VERSION file, and each build target in it becomes one entry. This is the single source the CI
+# and CD workflows build their matrix from, so the workflows never restate the target list.
 #
 # Usage: discover-images.sh [--format=json|families|readable]
 #
@@ -33,9 +32,7 @@ join_with_comma() {
     done
 }
 
-# read_targets: Prints one build target name per line, in declaration order, for the Dockerfile
-# given. A target is a named build stage, so the closed stage vocabulary of the repository is read
-# straight from the file instead of being restated here.
+# Reads the target list straight out of the named build stages, so it is never restated here.
 read_targets() {
     local dockerfile="${1:?Usage: read_targets <dockerfile>}"
 
@@ -43,8 +40,7 @@ read_targets() {
         | awk '{print $NF}'
 }
 
-# build_entries: Walks every build unit and emits one JSON object per target on its own line. The
-# caller decides how to render them, so the walk itself lives in one place.
+# Emits one JSON object per target on its own line. The caller decides how to render them.
 build_entries() {
     local dockerfile context family minor version target
 

@@ -1,18 +1,13 @@
 #!/usr/bin/env bash
 
-# smoke-lib.sh: Shared host-side helpers for the family smoke scripts. Every
-# images/**/scripts/smoke sources this through the SMOKE_LIB path the Makefile exports. The smoke
-# scripts run on the host and reach into throwaway containers with docker exec and docker inspect,
-# so these helpers centralize the assertion, cleanup, wait, and logging idioms that every family
-# would otherwise duplicate. This file only defines functions and is sourced, never executed, so it
-# carries no `set -euo pipefail` and no `main` (the sourcing script owns both).
+# smoke-lib.sh: Shared host-side helpers for the family smoke scripts, sourced through the SMOKE_LIB
+# path the Makefile exports. Only defines functions and is sourced, never executed, so it carries no
+# `set -euo pipefail` and no `main`: the sourcing script owns both.
 #
 # Usage: source "${SMOKE_LIB:?SMOKE_LIB not set}"
 
 # shellcheck shell=bash
 
-# Logging: the single home for the [smoke] idiom. Passing assertions go to stdout, failures to
-# stderr, so a caller can separate the two streams.
 smoke_ok() {
     local label="${1:?Usage: smoke_ok <label>}"
 
@@ -53,9 +48,8 @@ assert_not_contains() {
     return 1
 }
 
-# assert_absent: Asserts a command is not resolvable inside an image, running the check in a
-# throwaway container with the base entrypoint cleared. Used for the targets with no long-running
-# process, where there is no container to exec into.
+# assert_absent is the image-level counterpart of assert_missing below, for targets with no
+# long-running process and therefore no booted container to exec into.
 assert_absent() {
     local image="${1:?Usage: assert_absent <image> <command> <label>}"
     local command_name="${2:?Usage: assert_absent <image> <command> <label>}"
@@ -98,18 +92,15 @@ assert_module_absent() {
     return 1
 }
 
-# cleanup: Removes the named throwaway container, tolerating its absence, so it is safe both in an
-# EXIT trap and before booting a fresh container.
+# Tolerates an absent container, so it is safe both in an EXIT trap and before booting a fresh one.
 cleanup() {
     local container_name="${1:?Usage: cleanup <container>}"
 
     docker rm -f "${container_name}" > /dev/null 2>&1 || true
 }
 
-# wait_until: Polls a caller-supplied probe function until it succeeds or the attempts run out. The
-# probe is a function name that returns zero when the container is ready, so each family keeps its
-# own readiness check (a reported health status, an accepted connection) while sharing this loop,
-# the success line, and the failure diagnostics.
+# Polls a caller-supplied probe function until it succeeds or the attempts run out, so each family
+# keeps its own readiness check while sharing this loop and its failure diagnostics.
 #
 # Usage: wait_until <container> <description> <attempts> <interval-seconds> <probe-function>
 wait_until() {

@@ -78,9 +78,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # The immutable versioned tag and the floating alias are pushed together. The alias is a local
-      # convenience pointer and the weekly security rebuild repoints it, the versioned tag never
-      # changes meaning once published.
+      # The versioned tag never changes meaning once published. The alias is a pointer the weekly
+      # security rebuild repoints.
       - name: Build and push
         uses: docker/build-push-action@v7
         with:

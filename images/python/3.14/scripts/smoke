@@ -2,9 +2,8 @@
 set -euo pipefail
 
 # smoke: Boots throwaway containers from the Python base images and asserts the runtime contract.
-# Every target here is a language base with no long-running process of its own, so each contract is
-# asserted by running the toolchain directly, the way an application build stage or a Makefile
-# invokes it.
+# Every target here is a language base with no process of its own, so each contract is asserted by
+# running the toolchain directly.
 #
 # Usage: smoke <runtime-image> <development-image> <builder-image> <cli-image>
 #
