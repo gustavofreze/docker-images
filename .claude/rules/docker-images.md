@@ -35,7 +35,8 @@ Verify every item before producing any Dockerfile, dockerignore, or compose file
    See § Build context.
 6. Every project Dockerfile inherits `FROM` a published base image pinned to its full versioned tag,
    never a floating alias, never `latest`. See § Consuming.
-7. A consumer Dockerfile carries no comment other than the syntax directive. See § Consuming.
+7. No Dockerfile carries a comment, base image or consumer, beyond the syntax directive and an
+   inline `hadolint ignore`. Rationale lives in § Where the reasoning lives and the family README.
 8. No project re-declares what the base already provides. See § What the base provides.
 9. Compose files declare no `version:` key. Every long-running service has resource limits and a
    health signal. See § Compose.
@@ -166,7 +167,8 @@ the umbrella.
 Every base Dockerfile matches its siblings on all of these:
 
 1. The literal first line is `# syntax=docker/dockerfile:1`.
-2. A header block naming the family, the target count, and one indented line per target.
+2. No comment anywhere else. The only other `#` line permitted is an inline `hadolint ignore=<rule>`
+   directive, which is a lint instruction and not a comment. See § Where the reasoning lives.
 3. A full OCI label set (`title`, `description`, `vendor`, `authors`, `licenses`, `url`, `source`,
    `documentation`) on each target built from a distinct upstream base, and a `title` and
    `description` override on each derived target.
@@ -187,8 +189,41 @@ Every base Dockerfile matches its siblings on all of these:
    `COPY --chmod=755`, carrying a shebang as its first line, and sourced from the family's `bin/`.
    Every reference to it uses that same path.
 
-Preserve the authoring comments that explain a non-obvious choice (why a package is pruned, why a
-drop-in is ordered where it is). The no-comment rule is for consumer Dockerfiles only.
+## Where the reasoning lives
+
+Dockerfiles here carry no prose. The rationale for a non-obvious instruction lives in this section
+and in the family README, so it is written once instead of drifting between a comment and a document.
+Read this before reordering or simplifying an instruction: each item below is load bearing, and the
+build or the gate breaks when it is undone.
+
+- **The PHP `development` drop-ins are `COPY`ed before the `pecl install` that follows them.** The
+  runtime's hardening drop-in disables the process functions, and PEAR calls `exec()` while building
+  an extension, so the install fails with a fatal in `OS/Guess.php` if the ordering is swapped for
+  cache reasons. `conf/development.ini` clears `disable_functions`, which is what makes it work.
+- **The `development` OPcache drop-in reuses the runtime's file name.** That replaces the production
+  tuning instead of stacking a second `[opcache]` section on top of it. Renaming it silently keeps
+  production tuning active in the development image.
+- **Drop-ins are numbered because PHP reads `conf.d` alphabetically.** Hardening is `10`, the
+  development and cli overrides are `90`. An override numbered below the hardening file loses.
+- **`conf/fpm-shutdown.conf` opens `[global]` and then reopens `[www]`.** The alphabetical
+  `php-fpm.d` include order reaches it with the `[www]` pool of `zz-docker.conf` still open, and
+  `conf/fpm-development.conf` relies on that pool still being open when it is read.
+- **The Python `runtime` uninstalls pip on purpose.** It is the largest dependency tree in the image
+  and nothing in it is reachable from an application running the virtual environment the builder
+  populated. The `ensurepip` wheel stays as the way back. `scan-python` audits this target with no
+  ignore file, so restoring pip here fails the gate.
+- **The Python `builder` keeps its C toolchain on purpose.** It is the stage an application compiles
+  wheels in, so pruning it only moves the same install into the consuming Dockerfile.
+- **The `cli` targets end as root on purpose.** They are invoked over a bind mount owned by the
+  caller and must write into it. That is why each carries `hadolint ignore=DL3002` and is audited
+  with the CIS-DI-0001 exemption.
+- **Each phar is fetched to a scratch path and installed onto `PATH` only after `sha256sum -c`
+  passes,** so an unverified artifact is never executable, not even between two instructions.
+- **`phpmd` on `PATH` is a wrapper, not the phar.** The phar sits at `/usr/local/lib/phpmd.phar` and
+  the wrapper silences the deprecation notices PHPMD 2.15.0 raises on PHP 8.5, keeping stdout
+  parseable.
+- **`${PHPIZE_DEPS}` is deliberately unquoted.** It is a space-separated package list that must word
+  split, which is why SC2086 is relaxed in `.hadolint.yaml`.
 
 Every change runs the review gate (`make review`: lint, build, scan, audit, efficiency, smoke) before
 publication, and any input change bumps `VERSION`. A vulnerability finding that cannot be fixed
@@ -237,10 +272,9 @@ A project consumes the base in two thin files:
 A project adds only its own dependencies, code, and tuning. Dependency layers come before code layers
 so the cache survives code changes.
 
-A consumer Dockerfile carries no comment. The only line that is not a build instruction is the
-`# syntax=docker/dockerfile:1` directive. A consumer file is short and does one obvious thing per
-line, so a comment would only restate the instruction. The reasoning behind each step lives in the
-base image it inherits and in this rule, never copied into the project.
+A consumer Dockerfile carries no comment, like the base images it inherits. The only line that is not
+a build instruction is the `# syntax=docker/dockerfile:1` directive. The reasoning behind each step
+lives in the base image it inherits and in this rule, never copied into the project.
 
 The `cli` image needs no Dockerfile at all. It is referenced by a project Makefile variable and
 invoked over a bind mount.
