@@ -2,13 +2,13 @@
 
 FROM php:8.5.9-cli-alpine3.24 AS builder
 
-LABEL org.opencontainers.image.title="gustavofreze/php-builder" \
-      org.opencontainers.image.description="PHP 8.5 Composer build toolchain for application builder stages" \
+LABEL org.opencontainers.image.url="https://github.com/gustavofreze/docker-images" \
+      org.opencontainers.image.title="gustavofreze/php-builder" \
+      org.opencontainers.image.source="https://github.com/gustavofreze/docker-images" \
       org.opencontainers.image.vendor="gustavofreze" \
       org.opencontainers.image.authors="Gustavo Freze" \
       org.opencontainers.image.licenses="MIT" \
-      org.opencontainers.image.url="https://github.com/gustavofreze/docker-images" \
-      org.opencontainers.image.source="https://github.com/gustavofreze/docker-images" \
+      org.opencontainers.image.description="PHP 8.5 Composer build toolchain for application builder stages" \
       org.opencontainers.image.documentation="https://github.com/gustavofreze/docker-images/blob/main/images/php/README.md"
 
 RUN apk add --no-cache ca-certificates git unzip libzip \
@@ -70,13 +70,13 @@ COPY conf/cli.ini ${PHP_INI_DIR}/conf.d/zz-gustavofreze-90-cli.ini
 
 FROM php:8.5.9-fpm-alpine3.24 AS runtime
 
-LABEL org.opencontainers.image.title="gustavofreze/php" \
-      org.opencontainers.image.description="Hardened non-root PHP 8.5 FPM production runtime" \
+LABEL org.opencontainers.image.url="https://github.com/gustavofreze/docker-images" \
+      org.opencontainers.image.title="gustavofreze/php" \
+      org.opencontainers.image.source="https://github.com/gustavofreze/docker-images" \
       org.opencontainers.image.vendor="gustavofreze" \
       org.opencontainers.image.authors="Gustavo Freze" \
       org.opencontainers.image.licenses="MIT" \
-      org.opencontainers.image.url="https://github.com/gustavofreze/docker-images" \
-      org.opencontainers.image.source="https://github.com/gustavofreze/docker-images" \
+      org.opencontainers.image.description="Hardened non-root PHP 8.5 FPM production runtime" \
       org.opencontainers.image.documentation="https://github.com/gustavofreze/docker-images/blob/main/images/php/README.md"
 
 RUN apk add --no-cache ca-certificates libzip \

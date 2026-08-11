@@ -2,13 +2,13 @@
 
 FROM python:3.14.6-alpine3.24 AS builder
 
-LABEL org.opencontainers.image.title="gustavofreze/python-builder" \
-      org.opencontainers.image.description="Python 3.14 Poetry and C build toolchain for application builder stages" \
+LABEL org.opencontainers.image.url="https://github.com/gustavofreze/docker-images" \
+      org.opencontainers.image.title="gustavofreze/python-builder" \
+      org.opencontainers.image.source="https://github.com/gustavofreze/docker-images" \
       org.opencontainers.image.vendor="gustavofreze" \
       org.opencontainers.image.authors="Gustavo Freze" \
       org.opencontainers.image.licenses="MIT" \
-      org.opencontainers.image.url="https://github.com/gustavofreze/docker-images" \
-      org.opencontainers.image.source="https://github.com/gustavofreze/docker-images" \
+      org.opencontainers.image.description="Python 3.14 Poetry and C build toolchain for application builder stages" \
       org.opencontainers.image.documentation="https://github.com/gustavofreze/docker-images/blob/main/images/python/README.md"
 
 ARG PIP_VERSION=26.2
@@ -49,13 +49,13 @@ RUN apk add --no-cache bash curl docker-cli
 
 FROM python:3.14.6-alpine3.24 AS runtime
 
-LABEL org.opencontainers.image.title="gustavofreze/python" \
-      org.opencontainers.image.description="Hardened non-root Python 3.14 production runtime" \
+LABEL org.opencontainers.image.url="https://github.com/gustavofreze/docker-images" \
+      org.opencontainers.image.title="gustavofreze/python" \
+      org.opencontainers.image.source="https://github.com/gustavofreze/docker-images" \
       org.opencontainers.image.vendor="gustavofreze" \
       org.opencontainers.image.authors="Gustavo Freze" \
       org.opencontainers.image.licenses="MIT" \
-      org.opencontainers.image.url="https://github.com/gustavofreze/docker-images" \
-      org.opencontainers.image.source="https://github.com/gustavofreze/docker-images" \
+      org.opencontainers.image.description="Hardened non-root Python 3.14 production runtime" \
       org.opencontainers.image.documentation="https://github.com/gustavofreze/docker-images/blob/main/images/python/README.md"
 
 ENV PATH="/app/.venv/bin:${PATH}" \
