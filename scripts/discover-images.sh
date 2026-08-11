@@ -1,138 +1,158 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly IMAGES_DIR="images"
-FORMAT="json"
+# discover-images.sh: Enumerates every build unit under images/ and the tags it publishes.
+#
+# A build unit is a directory images/<family>/<upstream-minor>/ holding one multi-target Dockerfile
+# and a VERSION file. Each build target declared in that Dockerfile becomes one entry, carrying the
+# immutable versioned tag and the floating alias that tracks it. This script is the single source
+# the CI and CD workflows build their matrix from, so the workflows never restate the target list.
+#
+# Usage: discover-images.sh [--format=json|families|readable]
+#
+# Arguments:
+#   --format=json      One JSON object per target, the matrix the workflows consume (default).
+#   --format=families  JSON array of family names, the matrix the gate workflow consumes.
+#   --format=readable  Human-readable table, what `make discover` prints.
 
-for arg in "$@"; do
-    case "$arg" in
-        --format=*)
-            FORMAT="${arg#*=}"
-            ;;
-    esac
-done
+readonly IMAGES_DIRECTORY="images"
 
-if [[ "$FORMAT" != "json" && "$FORMAT" != "readable" ]]; then
-    echo "Error: Invalid format '$FORMAT'. Use 'json' or 'readable'." >&2
-    exit 1
-fi
+format_json() {
+    local entries=("$@")
 
-install_jq() {
-    echo "jq is not installed. Installing..." >&2
-
-    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-        if command -v apt-get &>/dev/null; then
-            sudo apt-get update && sudo apt-get install -y jq
-        elif command -v yum &>/dev/null; then
-            sudo yum install -y jq
-        elif command -v dnf &>/dev/null; then
-            sudo dnf install -y jq
-        elif command -v pacman &>/dev/null; then
-            sudo pacman -S --noconfirm jq
-        elif command -v apk &>/dev/null; then
-            sudo apk add --no-cache jq
-        else
-            echo "Error: Unable to install jq. Please install it manually." >&2
-            exit 1
-        fi
-    elif [[ "$OSTYPE" == "darwin"* ]]; then
-        if command -v brew &>/dev/null; then
-            brew install jq
-        else
-            echo "Error: Homebrew is not installed. Please install jq manually." >&2
-            exit 1
-        fi
-    else
-        echo "Error: Unsupported OS. Please install jq manually." >&2
-        exit 1
-    fi
-
-    if ! command -v jq &>/dev/null; then
-        echo "Error: Failed to install jq." >&2
-        exit 1
-    fi
-
-    echo "jq installed successfully!" >&2
+    printf '[%s]\n' "$(join_with_comma "${entries[@]}")"
 }
 
-check_dependencies() {
-    if ! command -v jq &>/dev/null; then
-        install_jq
-    fi
+join_with_comma() {
+    local separator=""
+    local item
+
+    for item in "$@"; do
+        printf '%s%s' "${separator}" "${item}"
+        separator=","
+    done
 }
 
-discover_images() {
-    local images=()
-    local dockerfile context relative_path name version variant tag
+# read_targets: Prints one build target name per line, in declaration order, for the Dockerfile
+# given. A target is a named build stage, so the closed stage vocabulary of the repository is read
+# straight from the file instead of being restated here.
+read_targets() {
+    local dockerfile="${1:?Usage: read_targets <dockerfile>}"
+
+    grep -oE '^FROM[[:space:]]+.*[[:space:]]+AS[[:space:]]+[A-Za-z0-9_.-]+' "${dockerfile}" \
+        | awk '{print $NF}'
+}
+
+# build_entries: Walks every build unit and emits one JSON object per target on its own line. The
+# caller decides how to render them, so the walk itself lives in one place.
+build_entries() {
+    local dockerfile context family minor version target
 
     while IFS= read -r dockerfile; do
         context="${dockerfile%/Dockerfile}"
-        relative_path="${context#"$IMAGES_DIR"/}"
+        family="$(basename "$(dirname "${context}")")"
+        minor="$(basename "${context}")"
 
-        local parts
-        IFS='/' read -ra parts <<< "$relative_path"
-
-        if [[ ${#parts[@]} -lt 2 ]]; then
-            echo "Warning: Skipping invalid path structure: $context" >&2
-            continue
+        if [[ ! -f "${context}/VERSION" ]]; then
+            echo "Error: ${context} has no VERSION file" >&2
+            exit 1
         fi
 
-        name="${parts[0]}"
-        version="${parts[1]}"
+        version="$(tr -d '[:space:]' < "${context}/VERSION")"
 
-        if [[ ${#parts[@]} -ge 3 ]]; then
-            variant="${parts[2]}"
-            tag="${version}-${variant}"
-        else
-            tag="${version}"
+        if [[ -z "${version}" ]]; then
+            echo "Error: ${context}/VERSION is empty" >&2
+            exit 1
         fi
 
-        if [[ -z "$name" || -z "$version" ]]; then
-            echo "Warning: Skipping invalid image: $context" >&2
-            continue
-        fi
+        while IFS= read -r target; do
+            printf '{"context":"%s","family":"%s","minor":"%s","target":"%s","version":"%s","tag":"%s-%s-%s","alias":"%s-%s"}\n' \
+                "${context}" "${family}" "${minor}" "${target}" "${version}" \
+                "${minor}" "${target}" "${version}" \
+                "${minor}" "${target}"
+        done < <(read_targets "${dockerfile}")
+    done < <(find "${IMAGES_DIRECTORY}" -mindepth 3 -maxdepth 3 -name Dockerfile -type f | sort)
+}
 
-        images+=("{\"context\": \"$context\", \"name\": \"$name\", \"tag\": \"$tag\"}")
-    done < <(find "$IMAGES_DIR" -name Dockerfile -type f 2>/dev/null | sort)
+build_families() {
+    local entries=("$@")
+    local families=()
+    local entry family
 
-    if [[ ${#images[@]} -eq 0 ]]; then
-        echo "[]"
-        return
-    fi
+    for entry in "${entries[@]}"; do
+        family="$(printf '%s' "${entry}" | sed -E 's/.*"family":"([^"]+)".*/\1/')"
 
-    local json_output
-    json_output="[$(IFS=,; echo "${images[*]}")]"
+        case " ${families[*]-} " in
+            *" \"${family}\" "*)
+                continue
+                ;;
+        esac
 
-    echo "$json_output" | jq -c '.'
+        families+=("\"${family}\"")
+    done
+
+    printf '[%s]\n' "$(join_with_comma "${families[@]}")"
 }
 
 format_readable() {
-    local json_input
-    json_input=$(cat)
+    local entries=("$@")
+    local entry
 
-    echo "Discovered Docker images:"
-    echo ""
+    printf '%-22s %-14s %-30s %s\n' "BUILD UNIT" "TARGET" "TAG" "ALIAS"
 
-    echo "$json_input" | jq -r '.[] |
-        "Directory: \(.context)\n" +
-        "Name:      \(.name)\n" +
-        "Tag:       \(.tag)\n"'
+    for entry in "${entries[@]}"; do
+        printf '%s\n' "${entry}" \
+            | sed -E 's/.*"context":"([^"]+)".*"family":"([^"]+)".*"target":"([^"]+)".*"tag":"([^"]+)","alias":"([^"]+)".*/\1|\3|\2:\4|\2:\5/' \
+            | awk -F'|' '{printf "%-22s %-14s %-30s %s\n", $1, $2, $3, $4}'
+    done
 }
 
 main() {
-    check_dependencies
+    local format="json"
+    local argument
+    local entries=()
 
-    if [[ ! -d "$IMAGES_DIR" ]]; then
-        echo "Error: Directory '$IMAGES_DIR' not found" >&2
+    for argument in "$@"; do
+        case "${argument}" in
+            --format=*)
+                format="${argument#*=}"
+                ;;
+            *)
+                echo "Error: unknown argument '${argument}'. Usage: discover-images.sh [--format=json|families|readable]" >&2
+                exit 1
+                ;;
+        esac
+    done
+
+    case "${format}" in
+        json|families|readable) ;;
+        *)
+            echo "Error: invalid format '${format}'. Use 'json', 'families', or 'readable'." >&2
+            exit 1
+            ;;
+    esac
+
+    if [[ ! -d "${IMAGES_DIRECTORY}" ]]; then
+        echo "Error: directory '${IMAGES_DIRECTORY}' not found. Run this from the repository root." >&2
         exit 1
     fi
 
-    case "$FORMAT" in
+    mapfile -t entries < <(build_entries)
+
+    if [[ ${#entries[@]} -eq 0 ]]; then
+        echo "Error: no build unit found under '${IMAGES_DIRECTORY}'" >&2
+        exit 1
+    fi
+
+    case "${format}" in
         json)
-            discover_images
+            format_json "${entries[@]}"
+            ;;
+        families)
+            build_families "${entries[@]}"
             ;;
         readable)
-            discover_images | format_readable
+            format_readable "${entries[@]}"
             ;;
     esac
 }

@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# smoke: Boots throwaway containers from the Python base images and asserts the runtime contract.
+# Every target here is a language base with no long-running process of its own, so each contract is
+# asserted by running the toolchain directly, the way an application build stage or a Makefile
+# invokes it.
+#
+# Usage: smoke <runtime-image> <development-image> <builder-image> <cli-image>
+#
+# Arguments:
+#   runtime-image      Tag of the production runtime image to verify.
+#   development-image  Tag of the development image to verify.
+#   builder-image      Tag of the builder toolchain image to verify.
+#   cli-image          Tag of the cli tooling image to verify.
+
+source "${SMOKE_LIB:?SMOKE_LIB not set}"
+
+run() {
+    local image="${1:?Usage: run <image> <command...>}"
+    shift
+    docker run --rm --entrypoint "" "${image}" "$@"
+}
+
+verify_shared_contract() {
+    local image="${1:?Usage: verify_shared_contract <image> <label>}"
+    local label="${2:?Usage: verify_shared_contract <image> <label>}"
+
+    assert_contains "Python 3.14" "$(run "${image}" python3 --version)" "pinned Python version present in the ${label}"
+    assert_contains "/app" "$(run "${image}" pwd)" "${label} working directory is the application root"
+    assert_contains "/app/.venv/bin" "$(run "${image}" printenv PATH)" "project virtual environment is on PATH in the ${label}"
+    assert_contains "1" "$(run "${image}" printenv PYTHONUNBUFFERED)" "unbuffered output set in the ${label}"
+    assert_contains "1" "$(run "${image}" printenv PYTHONDONTWRITEBYTECODE)" "byte code writing disabled in the ${label}"
+}
+
+verify_runtime_image() {
+    local image="${1:?Usage: verify_runtime_image <image>}"
+
+    echo "[smoke] verifying production runtime ${image}"
+
+    verify_shared_contract "${image}" "runtime"
+    assert_contains "app" "$(run "${image}" whoami)" "runtime runs as the non-root app user"
+    assert_contains "uid=1000" "$(run "${image}" id)" "runtime user is uid 1000"
+    assert_absent "${image}" "pip" "installer absent from the production runtime"
+    assert_absent "${image}" "gcc" "compiler absent from the production runtime"
+    assert_absent "${image}" "poetry" "poetry absent from the production runtime"
+    assert_absent "${image}" "git" "git absent from the production runtime"
+    assert_absent "${image}" "bash" "bash absent from the production runtime"
+    assert_absent "${image}" "docker" "docker CLI absent from the production runtime"
+}
+
+verify_development_image() {
+    local image="${1:?Usage: verify_development_image <image>}"
+
+    echo "[smoke] verifying development image ${image}"
+
+    verify_shared_contract "${image}" "development image"
+    assert_contains "app" "$(run "${image}" whoami)" "development image runs as the non-root app user"
+    assert_contains "Poetry (version 2.4.1)" "$(run "${image}" poetry --version)" "pinned Poetry version present"
+    assert_contains "pip 26.2" "$(run "${image}" python3 -m pip --version)" "pinned pip restored in the development image"
+    assert_contains "1.8.21" "$(run "${image}" python3 -m debugpy --version 2>&1)" "pinned debugpy version present"
+    assert_contains "GNU bash" "$(run "${image}" bash --version)" "bash present in the development image"
+    assert_contains "git version" "$(run "${image}" git --version)" "git present in the development image"
+    assert_absent "${image}" "gcc" "compiler pruned from the development image"
+}
+
+verify_builder_image() {
+    local image="${1:?Usage: verify_builder_image <image>}"
+
+    echo "[smoke] verifying builder ${image}"
+
+    verify_shared_contract "${image}" "builder"
+    assert_contains "app" "$(run "${image}" whoami)" "builder runs as the non-root app user"
+    assert_contains "Poetry (version 2.4.1)" "$(run "${image}" poetry --version)" "pinned Poetry version present in the builder"
+    assert_contains "pip 26.2" "$(run "${image}" python3 -m pip --version)" "pinned pip version present in the builder"
+    assert_contains "gcc" "$(run "${image}" gcc --version)" "C toolchain kept for wheel builds"
+    assert_contains "git version" "$(run "${image}" git --version)" "git available for git-hosted dependencies"
+    assert_contains "true" "$(run "${image}" printenv POETRY_VIRTUALENVS_IN_PROJECT)" "Poetry creates the virtual environment inside the project"
+    assert_absent "${image}" "docker" "docker CLI absent from the builder"
+}
+
+verify_cli_image() {
+    local image="${1:?Usage: verify_cli_image <image>}"
+
+    echo "[smoke] verifying cli ${image}"
+
+    verify_shared_contract "${image}" "cli"
+    assert_contains "Poetry (version 2.4.1)" "$(run "${image}" poetry --version)" "Poetry present in cli"
+    assert_contains "Docker version" "$(run "${image}" docker --version)" "docker CLI present in cli"
+    assert_contains "GNU bash" "$(run "${image}" bash --version)" "bash present in cli"
+    assert_contains "git version" "$(run "${image}" git --version)" "git present in cli"
+}
+
+main() {
+    local runtime_image="${1:?Usage: smoke <runtime-image> <development-image> <builder-image> <cli-image>}"
+    local development_image="${2:?Usage: smoke <runtime-image> <development-image> <builder-image> <cli-image>}"
+    local builder_image="${3:?Usage: smoke <runtime-image> <development-image> <builder-image> <cli-image>}"
+    local cli_image="${4:?Usage: smoke <runtime-image> <development-image> <builder-image> <cli-image>}"
+
+    verify_runtime_image "${runtime_image}"
+    verify_development_image "${development_image}"
+    verify_builder_image "${builder_image}"
+    verify_cli_image "${cli_image}"
+
+    echo "[smoke] all assertions passed"
+}
+
+main "$@"
