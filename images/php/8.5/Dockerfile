@@ -29,7 +29,7 @@ RUN apk add --no-cache ca-certificates git unzip libzip \
     && apk del .build-deps \
     && mv "${PHP_INI_DIR}/php.ini-production" "${PHP_INI_DIR}/php.ini"
 
-COPY --from=composer:2.9.8 /usr/bin/composer /usr/local/bin/composer
+COPY --from=composer:2.10.2 /usr/bin/composer /usr/local/bin/composer
 
 # COMPOSER_ALLOW_SUPERUSER silences the root warning for the cli variant below, which stays root.
 # COMPOSER_HOME is a www-data-owned path so Composer can write its cache and config once the
@@ -167,7 +167,7 @@ RUN apk add --no-cache bash git unzip libzip \
     && apk del .build-deps \
     && rm -rf /tmp/pear
 
-COPY --from=composer:2.9.8 /usr/bin/composer /usr/local/bin/composer
+COPY --from=composer:2.10.2 /usr/bin/composer /usr/local/bin/composer
 
 ENV COMPOSER_ALLOW_SUPERUSER=1 \
     COMPOSER_HOME=/composer

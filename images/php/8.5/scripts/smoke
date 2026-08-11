@@ -80,7 +80,7 @@ verify_development_image() {
     assert_contains "1" "$(docker exec "${CONTAINER_NAME}" php -r 'echo ini_get("opcache.validate_timestamps");')" "development OPcache validates timestamps"
     assert_not_contains "shell_exec" "$(docker exec "${CONTAINER_NAME}" php -r 'echo ini_get("disable_functions"), "|";')" "process functions re-enabled so Composer can run"
     assert_contains "Xdebug" "$(docker exec "${CONTAINER_NAME}" php -v)" "xdebug present in the development image"
-    assert_contains "Composer version 2.9" "$(docker exec "${CONTAINER_NAME}" composer --version)" "pinned Composer version present"
+    assert_contains "Composer version 2.10" "$(docker exec "${CONTAINER_NAME}" composer --version)" "pinned Composer version present"
     assert_contains "GNU bash" "$(docker exec "${CONTAINER_NAME}" bash --version)" "bash present in the development image"
     assert_missing "${CONTAINER_NAME}" "gcc" "compiler pruned from the development image"
 }
@@ -93,7 +93,7 @@ verify_builder_image() {
 
     assert_contains "www-data" "$(run "${image}" whoami)" "builder runs as the non-root www-data user"
     assert_contains "PHP 8.5" "$(run "${image}" php --version)" "pinned PHP version present in the builder"
-    assert_contains "Composer version 2.9" "$(run "${image}" composer --version)" "pinned Composer version present in the builder"
+    assert_contains "Composer version 2.10" "$(run "${image}" composer --version)" "pinned Composer version present in the builder"
     assert_contains "/var/www/html" "$(run "${image}" pwd)" "builder working directory is the application root"
     assert_contains "git version" "$(run "${image}" git --version)" "git available for git-hosted dependencies"
 
@@ -113,7 +113,7 @@ verify_cli_image() {
 
     assert_contains "PHP 8.5" "$(run "${image}" php --version)" "pinned PHP version present in cli"
     assert_contains "cli" "$(run "${image}" php -r 'echo PHP_SAPI;')" "cli image runs the PHP CLI SAPI"
-    assert_contains "Composer version 2.9" "$(run "${image}" composer --version)" "Composer present in cli"
+    assert_contains "Composer version 2.10" "$(run "${image}" composer --version)" "Composer present in cli"
     assert_contains "Xdebug" "$(run "${image}" php -v)" "Xdebug coverage present in cli"
     assert_contains "Docker version" "$(run "${image}" docker --version)" "docker CLI present in cli"
     assert_contains "GNU bash" "$(run "${image}" bash --version)" "bash present in cli"

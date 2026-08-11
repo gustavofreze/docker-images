@@ -66,10 +66,10 @@ Every image provides, and no consuming Dockerfile re-declares:
   preserved, and `conf/fpm-shutdown.conf` sets `process_control_timeout = 10s`, so on stop the master
   drains in-flight requests before escalating, inside the 10s default stop timeout of `docker stop`
   and Compose.
-- In `development` only: Xdebug 3.5.3, Composer 2.9.8, bash, git, undecorated worker output in
+- In `development` only: Xdebug 3.5.3, Composer 2.10.2, bash, git, undecorated worker output in
   `docker logs`, and the process functions re-enabled so Composer can run.
 
-The `builder` image carries Composer 2.9.8, git, and unzip. The `cli` variant adds Xdebug coverage,
+The `builder` image carries Composer 2.10.2, git, and unzip. The `cli` variant adds Xdebug coverage,
 the docker CLI, bash, and the pinned linters (CodeSniffer 4.0.1 as `phpcs` and `phpcbf`, Mess
 Detector 2.15.0 as `phpmd`), each fetched over TLS and verified against its published sha256 before
 it enters a layer.
