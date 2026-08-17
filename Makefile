@@ -171,11 +171,15 @@ discover-json: ## @build Emit the build matrix consumed by the CI and CD workflo
 	@./scripts/discover-images.sh --format=json
 
 .PHONY: lint
-lint: lint-scripts ## @verify Lint every discovered Dockerfile and shell script
+lint: lint-scripts lint-docs ## @verify Lint every Dockerfile, shell script, and family README
 	@for dockerfile in $(DOCKERFILES); do
 		echo "[lint] $${dockerfile}"
 		$(HADOLINT_RUN) < "$${dockerfile}"
 	done
+
+.PHONY: lint-docs
+lint-docs: ## @verify Assert every family README agrees with its build units
+	@./scripts/check-documentation.sh
 
 .PHONY: lint-scripts
 lint-scripts: ## @verify ShellCheck every discovered shell script
@@ -189,12 +193,12 @@ lint-scripts: ## @verify ShellCheck every discovered shell script
 # a gate. lint-scripts is .PHONY and make runs it once per invocation, so the full review does not
 # repeat it.
 .PHONY: lint-php
-lint-php: lint-scripts ## @verify Lint the PHP Dockerfile and every shell script
+lint-php: lint-scripts lint-docs ## @verify Lint the PHP Dockerfile, every shell script, and the READMEs
 	@echo "[lint] images/php/8.5/Dockerfile"
 	@$(HADOLINT_RUN) < images/php/8.5/Dockerfile
 
 .PHONY: lint-python
-lint-python: lint-scripts ## @verify Lint the Python Dockerfile and every shell script
+lint-python: lint-scripts lint-docs ## @verify Lint the Python Dockerfile, every shell script, and the READMEs
 	@echo "[lint] images/python/3.14/Dockerfile"
 	@$(HADOLINT_RUN) < images/python/3.14/Dockerfile
 
