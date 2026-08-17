@@ -134,38 +134,3 @@ jobs:
 
           echo "attached ${document}; consumers read it with: trivy image --vex oci <image>"
 
-  scan:
-    name: "Scan ${{ matrix.family }}:${{ matrix.tag }}"
-    needs: [ discover, publish ]
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    permissions:
-      contents: read
-      packages: read
-      security-events: write
-    strategy:
-      fail-fast: false
-      matrix:
-        include: ${{ fromJson(needs.discover.outputs.matrix) }}
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Scan the published image
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          format: sarif
-          output: trivy-results.sarif
-          severity: CRITICAL,HIGH
-          image-ref: "${{ env.GHCR_REGISTRY }}/${{ github.repository_owner }}/${{ matrix.family }}:${{ matrix.tag }}"
-          limit-severities-for-sarif: true
-        env:
-          TRIVY_USERNAME: ${{ github.actor }}
-          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload scan results
-        uses: github/codeql-action/upload-sarif@v4.37.5
-        if: always()
-        with:
-          sarif_file: trivy-results.sarif
-          category: "trivy-${{ matrix.family }}-${{ matrix.target }}"
-

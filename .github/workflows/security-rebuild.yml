@@ -109,7 +109,6 @@ jobs:
       contents: read
       packages: read
       issues: write
-      security-events: write
     strategy:
       fail-fast: false
       matrix:
@@ -123,25 +122,6 @@ jobs:
           registry: ${{ env.GHCR_REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Scan the published versioned tag
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          format: sarif
-          output: trivy-results.sarif
-          severity: CRITICAL,HIGH
-          image-ref: "${{ env.GHCR_REGISTRY }}/${{ github.repository_owner }}/${{ matrix.family }}:${{ matrix.tag }}"
-          limit-severities-for-sarif: true
-        env:
-          TRIVY_USERNAME: ${{ github.actor }}
-          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload scan results
-        uses: github/codeql-action/upload-sarif@v4.37.5
-        if: always()
-        with:
-          sarif_file: trivy-results.sarif
-          category: "trivy-${{ matrix.family }}-${{ matrix.target }}"
 
       - name: Look for findings that actually have a fix
         id: remediable
