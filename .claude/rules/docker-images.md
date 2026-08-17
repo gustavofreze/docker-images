@@ -171,10 +171,15 @@ A build reads its inputs from the build context and from pinned, verified source
 - `ADD` is never used. It also fetches URLs and unpacks archives, which hides what enters the image.
 - A package manager invoked at build time pins its whole resolved tree, not just the packages named on the command line.
   Pinning only the named ones leaves every transitive dependency floating to whatever the index serves that minute, and
-  the failure is invisible until two builds of the same commit disagree. Python does this through
-  `constraints.txt` beside the Dockerfile, bound in with `RUN --mount=type=bind` so it constrains the install without
-  entering a layer, and regenerated from the pinned base whenever a pinned tool version moves. The file is a constraint
-  and not a requirement, so it changes no image's contents on its own: a package nothing pulls stays absent.
+  the failure is invisible until two builds of the same commit disagree. Python does this with a pair beside the
+  Dockerfile: `requirements.txt` names what the image installs, `constraints.txt` pins the tree those resolve to, and
+  both are bound in with `RUN --mount=type=bind` so they shape the install without entering a layer. Regenerate the
+  constraints from the pinned base whenever a version in the requirements moves. A constraint is not a requirement, so
+  the second file changes no image's contents on its own: a package nothing pulls stays absent.
+- A pinned version lives in exactly one file, and that file is one an updater reads. A version in a Dockerfile `ARG` is
+  read by nobody: the Docker ecosystem parses `FROM` lines and stops there, so an `ARG PIP_VERSION` ages silently no
+  matter how many updaters the repository configures. Naming the tools in a manifest of their own ecosystem, and wiring
+  that ecosystem into `dependabot.yml`, is what turns a pin into something that moves.
 
 ## Lean layers
 

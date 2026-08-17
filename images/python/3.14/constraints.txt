@@ -1,13 +1,16 @@
-# Every version pip resolves for the pinned tooling, so a build is the same artifact on any day and on
-# any runner. Without this the Dockerfile pins pip, Poetry and debugpy, and everything those drag in
-# floats to whatever PyPI serves at build time: the same commit produced msgpack 1.2.1 on one machine
-# and 1.1.2 on a CI runner, which is how a gate goes green locally and red in CI.
+# The resolved tree behind requirements.txt, so a build is the same artifact on any day and on any
+# runner. Without it the direct tools are pinned and everything they pull in floats to whatever PyPI
+# serves at build time: the same commit produced msgpack 1.2.1 on one machine and 1.1.2 on a CI
+# runner, which is how a gate goes green locally and red in CI.
+#
+# The direct tools are not repeated here. They are in requirements.txt, which is what the Dockerfile
+# installs with -r, and this file is applied with -c.
 #
 # A constraint is not an install. Nothing here is added to an image that would not have pulled it
 # anyway, so setuptools stays absent from every target and is pinned only as a floor, in case a source
 # build ever drags it in.
 #
-# Regenerate against the pinned base after moving PIP_VERSION, POETRY_VERSION or DEBUGPY_VERSION:
+# Regenerate against the pinned base after any version in requirements.txt moves:
 #
 #   docker run --rm python:3.14.7-alpine3.24 sh -c '
 #       apk add --no-cache build-base libffi-dev openssl-dev linux-headers > /dev/null
@@ -23,7 +26,6 @@ charset-normalizer==3.5.1
 cleo==2.1.0
 crashtest==0.4.1
 cryptography==50.0.0
-debugpy==1.8.21
 distlib==0.4.3
 dulwich==1.2.12
 fastjsonschema==2.22.2
@@ -43,10 +45,8 @@ more-itertools==11.1.0
 msgpack==1.2.1
 packaging==26.3
 pbs-installer==2026.8.14
-pip==26.2
 pkginfo==1.12.1.2
 platformdirs==4.11.3
-poetry==2.4.1
 poetry-core==2.4.0
 pycparser==3.0
 pyproject_hooks==1.2.0
@@ -55,9 +55,9 @@ RapidFuzz==3.14.5
 requests==2.34.2
 requests-toolbelt==1.0.0
 SecretStorage==3.5.0
+setuptools==84.0.0
 shellingham==1.5.4
 tomlkit==0.15.1
 trove-classifiers==2026.6.1.19
 urllib3==2.7.0
 virtualenv==21.7.4
-setuptools==84.0.0

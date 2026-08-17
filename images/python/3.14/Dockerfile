@@ -11,9 +11,6 @@ LABEL org.opencontainers.image.url="https://github.com/gustavofreze/docker-image
       org.opencontainers.image.description="Python 3.14 Poetry and C build toolchain for application builder stages" \
       org.opencontainers.image.documentation="https://github.com/gustavofreze/docker-images/blob/main/images/python/README.md"
 
-ARG PIP_VERSION=26.2
-ARG POETRY_VERSION=2.4.1
-
 ENV PATH="/app/.venv/bin:${PATH}" \
     VIRTUAL_ENV=/app/.venv \
     PIP_NO_CACHE_DIR=1 \
@@ -25,10 +22,11 @@ ENV PATH="/app/.venv/bin:${PATH}" \
     POETRY_CACHE_DIR=/tmp/poetry-cache \
     POETRY_VIRTUALENVS_IN_PROJECT=true
 
-RUN --mount=type=bind,source=constraints.txt,target=/tmp/constraints.txt \
+RUN --mount=type=bind,source=requirements.txt,target=/tmp/requirements.txt \
+    --mount=type=bind,source=constraints.txt,target=/tmp/constraints.txt \
     apk add --no-cache ca-certificates git build-base libffi-dev openssl-dev linux-headers \
-    && python3 -m pip install --no-cache-dir --constraint /tmp/constraints.txt \
-        "pip==${PIP_VERSION}" "poetry==${POETRY_VERSION}" \
+    && python3 -m pip install --no-cache-dir \
+        --requirement /tmp/requirements.txt --constraint /tmp/constraints.txt \
     && rm -rf /root/.cache
 
 RUN addgroup -g 1000 app \
@@ -83,10 +81,6 @@ FROM runtime AS development
 LABEL org.opencontainers.image.title="gustavofreze/python-development" \
       org.opencontainers.image.description="Python 3.14 development runtime: runtime plus Poetry, debugpy, bash, and git"
 
-ARG PIP_VERSION=26.2
-ARG POETRY_VERSION=2.4.1
-ARG DEBUGPY_VERSION=1.8.21
-
 ENV PIP_NO_CACHE_DIR=1 \
     PIP_ROOT_USER_ACTION=ignore \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
@@ -96,14 +90,14 @@ ENV PIP_NO_CACHE_DIR=1 \
 
 USER 0
 
-RUN --mount=type=bind,source=constraints.txt,target=/tmp/constraints.txt \
+RUN --mount=type=bind,source=requirements.txt,target=/tmp/requirements.txt \
+    --mount=type=bind,source=requirements-development.txt,target=/tmp/requirements-development.txt \
+    --mount=type=bind,source=constraints.txt,target=/tmp/constraints.txt \
     apk add --no-cache bash git \
     && apk add --no-cache --virtual .build-deps build-base \
     && python3 -m ensurepip \
-    && python3 -m pip install --no-cache-dir --constraint /tmp/constraints.txt \
-        --upgrade "pip==${PIP_VERSION}" \
-    && python3 -m pip install --no-cache-dir --constraint /tmp/constraints.txt \
-        "poetry==${POETRY_VERSION}" "debugpy==${DEBUGPY_VERSION}" \
+    && python3 -m pip install --no-cache-dir --upgrade \
+        --requirement /tmp/requirements-development.txt --constraint /tmp/constraints.txt \
     && apk del .build-deps \
     && rm -rf /root/.cache \
     && git config --system --add safe.directory /app
