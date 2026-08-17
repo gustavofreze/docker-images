@@ -1,0 +1,5 @@
+# What the builder and the cli install. Pinned here rather than in a Dockerfile ARG so an updater can
+# see them: the pip ecosystem reads this file and follows the -c into constraints.txt, which holds the
+# resolved tree behind these three lines.
+pip==26.2
+poetry==2.4.1

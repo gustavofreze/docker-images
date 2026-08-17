@@ -36,6 +36,26 @@ updates:
         patterns:
           - "*"
 
+  # Reaches the Python tooling that no other ecosystem sees. The docker ecosystem above reads the FROM
+  # pins and nothing else, so before this the pip, Poetry and debugpy versions and the resolved tree
+  # behind them aged with no updater watching any of them.
+  - package-ecosystem: "pip"
+    directories:
+      - "/images/python/3.14"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: "build"
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      python:
+        patterns:
+          - "*"
+
   - package-ecosystem: "docker-compose"
     directory: "/"
     schedule:

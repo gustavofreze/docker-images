@@ -120,10 +120,13 @@ For a new family or target:
    per § Smoke contract.
 4. Pin the upstream image to an exact tag (patch and distro release) and honor the 7-day cooldown.
    Pin every tool the same way, and checksum-verify anything fetched over plain HTTPS. If the family
-   runs a package manager at build time, pin its whole resolved tree beside the Dockerfile and bind it
-   in with `RUN --mount=type=bind`, the way `images/python/3.14/constraints.txt` does. Pinning only the
-   packages you name leaves the rest floating, and you find out when CI builds a different image from
-   the same commit. Add the file to the CD path filter, or a change to it publishes nothing.
+   runs a package manager at build time, put the tools it installs in that ecosystem's own manifest and
+   the tree they resolve to in a lock or constraints file beside it, then bind both in with
+   `RUN --mount=type=bind`, the way `images/python/3.14/requirements.txt` and `constraints.txt` do.
+   Pinning only the packages you name leaves the rest floating, and you find out when CI builds a
+   different image from the same commit. Then wire that ecosystem into `dependabot.yml` and add the
+   files to the CD path filter. A version in a Dockerfile `ARG` is read by no updater at all, and a
+   file outside the path filter publishes nothing when it changes.
 5. Wire the family into the Makefile: its coordinate variables at the top, then `lint-<family>`,
    `build-<family>`, `scan-<family>`, `audit-<family>`, `efficiency-<family>`, `smoke-<family>`,
    `publish-<family>`, and a `review-<family>` chaining them in gate order. Add each to its aggregate.

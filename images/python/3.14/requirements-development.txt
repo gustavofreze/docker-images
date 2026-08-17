@@ -1,0 +1,4 @@
+# What the development target adds on top of the runtime. The include keeps the shared pins in one
+# place instead of repeating them, and an updater follows it the same way pip does.
+-r requirements.txt
+debugpy==1.8.21

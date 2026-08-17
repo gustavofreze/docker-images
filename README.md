@@ -88,7 +88,9 @@ docker-images/
             ├── Dockerfile          # multi-target: builder, cli, runtime, development
             ├── VERSION
             ├── .dockerignore
-            ├── constraints.txt     # every version pip resolves, so a build is reproducible
+            ├── requirements.txt    # the tools the image installs, tracked by Dependabot
+            ├── requirements-development.txt
+            ├── constraints.txt     # the tree they resolve to, so a build is reproducible
             └── scripts/smoke
 ```
 
