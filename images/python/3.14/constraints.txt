@@ -1,0 +1,63 @@
+# Every version pip resolves for the pinned tooling, so a build is the same artifact on any day and on
+# any runner. Without this the Dockerfile pins pip, Poetry and debugpy, and everything those drag in
+# floats to whatever PyPI serves at build time: the same commit produced msgpack 1.2.1 on one machine
+# and 1.1.2 on a CI runner, which is how a gate goes green locally and red in CI.
+#
+# A constraint is not an install. Nothing here is added to an image that would not have pulled it
+# anyway, so setuptools stays absent from every target and is pinned only as a floor, in case a source
+# build ever drags it in.
+#
+# Regenerate against the pinned base after moving PIP_VERSION, POETRY_VERSION or DEBUGPY_VERSION:
+#
+#   docker run --rm python:3.14.7-alpine3.24 sh -c '
+#       apk add --no-cache build-base libffi-dev openssl-dev linux-headers > /dev/null
+#       python3 -m pip install --no-cache-dir --quiet "pip==<V>" "poetry==<V>" "debugpy==<V>"
+#       python3 -m pip freeze --all'
+#
+anyio==4.14.2
+build==1.5.0
+CacheControl==0.14.4
+certifi==2026.7.22
+cffi==2.1.1
+charset-normalizer==3.5.1
+cleo==2.1.0
+crashtest==0.4.1
+cryptography==50.0.0
+debugpy==1.8.21
+distlib==0.4.3
+dulwich==1.2.12
+fastjsonschema==2.22.2
+filelock==3.32.3
+findpython==0.8.0
+h11==0.16.0
+httpcore==1.0.9
+httpx==0.28.1
+idna==3.18
+installer==1.0.1
+jaraco.classes==3.4.0
+jaraco.context==6.1.2
+jaraco.functools==4.6.0
+jeepney==0.9.0
+keyring==25.7.0
+more-itertools==11.1.0
+msgpack==1.2.1
+packaging==26.3
+pbs-installer==2026.8.14
+pip==26.2
+pkginfo==1.12.1.2
+platformdirs==4.11.3
+poetry==2.4.1
+poetry-core==2.4.0
+pycparser==3.0
+pyproject_hooks==1.2.0
+python-discovery==1.5.2
+RapidFuzz==3.14.5
+requests==2.34.2
+requests-toolbelt==1.0.0
+SecretStorage==3.5.0
+shellingham==1.5.4
+tomlkit==0.15.1
+trove-classifiers==2026.6.1.19
+urllib3==2.7.0
+virtualenv==21.7.4
+setuptools==84.0.0

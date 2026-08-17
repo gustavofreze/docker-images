@@ -1,0 +1,62 @@
+# Gate policy for the PHP family, not a vulnerability analysis. The analysis lives in
+# vex/php.openvex.json, is published alongside the images, and any consumer scanning with --vex gets
+# it. This file is read only by the PHP scans, through --ignorefile, so nothing here reaches another
+# family.
+#
+# Every entry is the Go standard library compiled into the docker CLI that the `cli` target copies
+# from the pinned official image. Go fixed all eight in 1.26.6. No docker CLI image built with 1.26.6
+# exists yet, on any tag or distro release, so there is nothing to pin to: the remediation is real but
+# not available. The `paths` restriction keeps each entry bound to that one binary, so the same CVE in
+# anything else this repository ever ships still fails the gate.
+#
+# Accepted 2026-08-17. Retires when a docker cli image built with Go 1.26.6 or newer is published and
+# clears the 7-day upstream cooldown. `expired_at` makes that automatic: past the date the gate reports
+# them again whether or not anyone remembered.
+vulnerabilities:
+    - id: CVE-2026-33818
+      paths:
+          - usr/local/bin/docker
+      statement: "encoding/asn1 denial of service through recursion in Unmarshal. Fixed in Go 1.26.6."
+      expired_at: 2026-09-17
+
+    - id: CVE-2026-39821
+      paths:
+          - usr/local/bin/docker
+      statement: "golang.org/x/net/idna privilege escalation through Punycode label processing. Fixed in Go 1.26.6."
+      expired_at: 2026-09-17
+
+    - id: CVE-2026-46600
+      paths:
+          - usr/local/bin/docker
+      statement: "golang.org/x/net/dns/dnsmessage denial of service on invalid DNS records. Fixed in Go 1.26.6."
+      expired_at: 2026-09-17
+
+    - id: CVE-2026-56853
+      paths:
+          - usr/local/bin/docker
+      statement: "net/http denial of service on unencrypted HTTP/2 connections. Fixed in Go 1.26.6."
+      expired_at: 2026-09-17
+
+    - id: CVE-2026-56858
+      paths:
+          - usr/local/bin/docker
+      statement: "html/template cross-site scripting on pathological input. Fixed in Go 1.26.6."
+      expired_at: 2026-09-17
+
+    - id: CVE-2026-56859
+      paths:
+          - usr/local/bin/docker
+      statement: "encoding/xml denial of service through decoding recursion depth. Fixed in Go 1.26.6."
+      expired_at: 2026-09-17
+
+    - id: CVE-2026-56860
+      paths:
+          - usr/local/bin/docker
+      statement: "net/url denial of service through quadratic complexity in path handling. Fixed in Go 1.26.6."
+      expired_at: 2026-09-17
+
+    - id: CVE-2026-56862
+      paths:
+          - usr/local/bin/docker
+      statement: "Go standard library advisory carried by the same binary. Fixed in Go 1.26.6."
+      expired_at: 2026-09-17

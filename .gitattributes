@@ -1,0 +1,15 @@
+# Normalize line endings. Every text file is stored and checked out as LF.
+* text=auto eol=lf
+
+# Force LF on assets executed or parsed inside Linux containers.
+# CRLF here would break shell scripts and config parsers at runtime.
+*.sh           text eol=lf
+**/scripts/*   text eol=lf
+**/bin/*       text eol=lf
+Dockerfile     text eol=lf
+Makefile       text eol=lf
+*.conf         text eol=lf
+*.ini          text eol=lf
+
+# Markdown diff driver, and keep prose out of the GitHub language breakdown.
+*.md          diff=markdown linguist-documentation

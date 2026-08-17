@@ -1,0 +1,144 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# smoke: Boots throwaway containers from the PHP base images and asserts the runtime contract.
+#
+# Usage: smoke <runtime-image> <development-image> <builder-image> <cli-image>
+#
+# Arguments:
+#   runtime-image      Tag of the production runtime image to verify.
+#   development-image  Tag of the development image to verify.
+#   builder-image      Tag of the builder toolchain image to verify.
+#   cli-image          Tag of the cli tooling image to verify.
+
+# shellcheck source=SCRIPTDIR/../../../../scripts/smoke-lib.sh
+source "${SMOKE_LIB:?SMOKE_LIB not set}"
+
+readonly CONTAINER_NAME="gustavofreze-php-smoke"
+
+probe_healthy() {
+    [[ "$(docker inspect --format '{{.State.Health.Status}}' "${CONTAINER_NAME}")" == "healthy" ]]
+}
+
+# Runs a one-shot command with the base entrypoint cleared. The builder and cli targets have no
+# process to boot, so their contract is asserted by running the toolchain directly.
+run() {
+    local image="${1:?Usage: run <image> <command...>}"
+    shift
+    docker run --rm --entrypoint "" "${image}" "$@"
+}
+
+boot() {
+    local image="${1:?Usage: boot <image>}"
+
+    cleanup "${CONTAINER_NAME}"
+    docker run --detach --name "${CONTAINER_NAME}" "${image}" > /dev/null
+    wait_until "${CONTAINER_NAME}" "container reported healthy" 30 2 probe_healthy
+}
+
+verify_shared_contract() {
+    local modules
+    modules="$(docker exec "${CONTAINER_NAME}" php -m)"
+
+    assert_contains "www-data" "$(docker exec "${CONTAINER_NAME}" whoami)" "runs as the non-root www-data user"
+    assert_contains "bcmath" "${modules}" "bcmath extension present"
+    assert_contains "curl" "${modules}" "curl extension present"
+    assert_contains "pdo_mysql" "${modules}" "pdo_mysql extension present"
+    assert_contains "sodium" "${modules}" "sodium extension present"
+    assert_contains "zip" "${modules}" "zip extension present"
+    assert_contains "Zend OPcache" "${modules}" "OPcache enabled"
+    assert_contains "expose_php => Off" "$(docker exec "${CONTAINER_NAME}" php -i | grep 'expose_php')" "expose_php disabled"
+    assert_contains "/var/www/html" "$(docker exec "${CONTAINER_NAME}" pwd)" "working directory is the application root"
+    assert_contains "process_control_timeout = 10s" "$(docker exec "${CONTAINER_NAME}" php-fpm -tt 2>&1 | grep 'process_control_timeout')" "graceful shutdown drain window set to 10s"
+}
+
+verify_runtime_image() {
+    local image="${1:?Usage: verify_runtime_image <image>}"
+
+    echo "[smoke] verifying production runtime ${image}"
+    boot "${image}"
+    verify_shared_contract
+    assert_contains "display_errors => Off" "$(docker exec "${CONTAINER_NAME}" php -i | grep '^display_errors')" "display_errors disabled"
+    assert_contains "0" "$(docker exec "${CONTAINER_NAME}" php -r 'echo ini_get("opcache.validate_timestamps");')" "production OPcache does not validate timestamps"
+    assert_contains "tracing" "$(docker exec "${CONTAINER_NAME}" php -r 'echo ini_get("opcache.jit");')" "production OPcache runs the tracing JIT"
+    assert_contains "shell_exec" "$(docker exec "${CONTAINER_NAME}" php -r 'echo ini_get("disable_functions");')" "process escape functions disabled"
+    assert_missing "${CONTAINER_NAME}" "composer" "composer absent from the production runtime"
+    assert_missing "${CONTAINER_NAME}" "bash" "bash absent from the production runtime"
+    assert_missing "${CONTAINER_NAME}" "git" "git absent from the production runtime"
+    assert_missing "${CONTAINER_NAME}" "gcc" "compiler absent from the production runtime"
+    assert_missing "${CONTAINER_NAME}" "docker" "docker CLI absent from the production runtime"
+    assert_module_absent "${CONTAINER_NAME}" "xdebug" "xdebug absent from the production runtime"
+}
+
+verify_development_image() {
+    local image="${1:?Usage: verify_development_image <image>}"
+
+    echo "[smoke] verifying development image ${image}"
+    boot "${image}"
+    verify_shared_contract
+    assert_contains "display_errors => STDOUT" "$(docker exec "${CONTAINER_NAME}" php -i | grep '^display_errors')" "display_errors enabled"
+    assert_contains "1" "$(docker exec "${CONTAINER_NAME}" php -r 'echo ini_get("opcache.validate_timestamps");')" "development OPcache validates timestamps"
+    assert_not_contains "shell_exec" "$(docker exec "${CONTAINER_NAME}" php -r 'echo ini_get("disable_functions"), "|";')" "process functions re-enabled so Composer can run"
+    assert_contains "Xdebug" "$(docker exec "${CONTAINER_NAME}" php -v)" "xdebug present in the development image"
+    assert_contains "Composer version 2.10" "$(docker exec "${CONTAINER_NAME}" composer --version)" "pinned Composer version present"
+    assert_contains "GNU bash" "$(docker exec "${CONTAINER_NAME}" bash --version)" "bash present in the development image"
+    assert_missing "${CONTAINER_NAME}" "gcc" "compiler pruned from the development image"
+}
+
+verify_builder_image() {
+    local image="${1:?Usage: verify_builder_image <image>}"
+    local modules
+
+    echo "[smoke] verifying builder ${image}"
+
+    assert_contains "www-data" "$(run "${image}" whoami)" "builder runs as the non-root www-data user"
+    assert_contains "PHP 8.5" "$(run "${image}" php --version)" "pinned PHP version present in the builder"
+    assert_contains "Composer version 2.10" "$(run "${image}" composer --version)" "pinned Composer version present in the builder"
+    assert_contains "/var/www/html" "$(run "${image}" pwd)" "builder working directory is the application root"
+    assert_contains "git version" "$(run "${image}" git --version)" "git available for git-hosted dependencies"
+
+    modules="$(run "${image}" php -m)"
+    assert_contains "bcmath" "${modules}" "bcmath extension present in the builder"
+    assert_contains "pdo_mysql" "${modules}" "pdo_mysql extension present in the builder"
+    assert_contains "zip" "${modules}" "zip extension present in the builder"
+
+    assert_not_contains "php-fpm" "$(docker inspect --format '{{json .Config.Cmd}}' "${image}")" "builder defaults to the PHP shell, not the FPM server"
+    assert_absent "${image}" "gcc" "compiler pruned from the builder after the extension build"
+    assert_absent "${image}" "docker" "docker CLI absent from the builder"
+}
+
+verify_cli_image() {
+    local image="${1:?Usage: verify_cli_image <image>}"
+
+    echo "[smoke] verifying cli ${image}"
+
+    assert_contains "PHP 8.5" "$(run "${image}" php --version)" "pinned PHP version present in cli"
+    assert_contains "cli" "$(run "${image}" php -r 'echo PHP_SAPI;')" "cli image runs the PHP CLI SAPI"
+    assert_contains "Composer version 2.10" "$(run "${image}" composer --version)" "Composer present in cli"
+    assert_contains "Xdebug" "$(run "${image}" php -v)" "Xdebug coverage present in cli"
+    assert_contains "Docker version" "$(run "${image}" docker --version)" "docker CLI present in cli"
+    assert_contains "GNU bash" "$(run "${image}" bash --version)" "bash present in cli"
+    assert_contains "version 4.0.1" "$(run "${image}" phpcs --version)" "pinned CodeSniffer version present in cli"
+    assert_contains "version 4.0.1" "$(run "${image}" phpcbf --version)" "pinned CodeSniffer fixer present in cli"
+    assert_contains "PHPMD 2.15.0" "$(run "${image}" phpmd --version)" "pinned Mess Detector version present in cli"
+    assert_not_contains "php-fpm" "$(docker inspect --format '{{json .Config.Cmd}}' "${image}")" "cli defaults to the PHP shell, not the FPM server"
+    assert_contains "/var/www/html" "$(run "${image}" pwd)" "cli working directory is the application root"
+}
+
+main() {
+    local runtime_image="${1:?Usage: smoke <runtime-image> <development-image> <builder-image> <cli-image>}"
+    local development_image="${2:?Usage: smoke <runtime-image> <development-image> <builder-image> <cli-image>}"
+    local builder_image="${3:?Usage: smoke <runtime-image> <development-image> <builder-image> <cli-image>}"
+    local cli_image="${4:?Usage: smoke <runtime-image> <development-image> <builder-image> <cli-image>}"
+
+    trap 'cleanup "${CONTAINER_NAME}"' EXIT
+
+    verify_runtime_image "${runtime_image}"
+    verify_development_image "${development_image}"
+    verify_builder_image "${builder_image}"
+    verify_cli_image "${cli_image}"
+
+    echo "[smoke] all assertions passed"
+}
+
+main "$@"

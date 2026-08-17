@@ -7,64 +7,79 @@ on:
     - cron: '0 0 * * 0'
   workflow_dispatch:
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 env:
   DOCKER_BUILDKIT: 1
 
 jobs:
-  lint:
-    name: Lint
+  version-guard:
+    name: Version guard
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7
-
-      - name: Lint Dockerfiles
-        uses: hadolint/hadolint-action@v3.3.0
         with:
-          recursive: true
-          config: ./.hadolint.yaml
+          fetch-depth: 0
+
+      - name: Assert every touched build unit bumped its VERSION
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          mapfile -t units < <(
+            git diff --name-only "${BASE_SHA}" "${HEAD_SHA}" -- 'images/*/*/**' \
+              | awk -F/ 'NF >= 4 {print $1"/"$2"/"$3}' \
+              | sort -u
+          )
+
+          failed=0
+          for unit in "${units[@]:-}"; do
+            [[ -n "${unit}" && -f "${unit}/VERSION" ]] || continue
+
+            if [[ -z "$(git diff --name-only "${BASE_SHA}" "${HEAD_SHA}" -- "${unit}/VERSION")" ]]; then
+              echo "::error file=${unit}/VERSION::${unit} changed but ${unit}/VERSION was not bumped. Version tags are immutable."
+              failed=1
+              continue
+            fi
+
+            echo "ok: ${unit} bumped to $(cat "${unit}/VERSION")"
+          done
+
+          exit "${failed}"
 
   discover:
     name: Discover
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      families: ${{ steps.set-matrix.outputs.families }}
     steps:
       - uses: actions/checkout@v7
 
       - id: set-matrix
-        run: |
-          chmod +x ./scripts/discover-images.sh
-          MATRIX=$(./scripts/discover-images.sh --format=json)
-          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+        run: echo "families=$(./scripts/discover-images.sh --format=families)" >> "$GITHUB_OUTPUT"
 
-  build:
-    name: "Build ${{ matrix.name }}:${{ matrix.tag }}"
+  review:
+    name: "Review ${{ matrix.family }} on ${{ matrix.runner }}"
     needs: discover
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJson(needs.discover.outputs.matrix) }}
+        family: ${{ fromJson(needs.discover.outputs.families) }}
+        runner: [ ubuntu-latest, ubuntu-24.04-arm ]
     steps:
       - uses: actions/checkout@v7
-      - uses: docker/setup-qemu-action@v4
-      - uses: docker/setup-buildx-action@v4
 
-      - name: Build image
-        uses: docker/build-push-action@v7
-        with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.context }}/Dockerfile
-          platforms: linux/amd64
-          push: false
-          load: true
-          tags: ${{ matrix.name }}:${{ matrix.tag }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Scan image
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          image-ref: ${{ matrix.name }}:${{ matrix.tag }}
-          format: table
-          severity: CRITICAL,HIGH
+      - name: Run the full gate
+        run: make review-${{ matrix.family }}

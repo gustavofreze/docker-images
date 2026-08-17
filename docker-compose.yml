@@ -1,0 +1,23 @@
+# Validator images for the review gate, declared here so Dependabot keeps them current.
+#
+# NOT A STACK. `docker compose up` here starts six validators with no mounts and no arguments, which
+# does nothing useful. Every tool is invoked by the Makefile with the mounts and flags its stage needs,
+# so run `make review` instead. `docker compose run --rm <service> --help` works to poke at one by
+# hand.
+#
+# The Makefile reads every image from this file, so this is the single place a validator version is
+# written. It sits at the repository root because that is where Dependabot's docker-compose ecosystem
+# and the compose CLI both look by default.
+services:
+    dive:
+        image: wagoodman/dive:v0.13.1
+    grype:
+        image: anchore/grype:v0.117.0
+    trivy:
+        image: aquasec/trivy:0.74.0
+    dockle:
+        image: goodwithtech/dockle:v0.4.15
+    hadolint:
+        image: hadolint/hadolint:v2.15.1-alpine
+    shellcheck:
+        image: koalaman/shellcheck:v0.11.0

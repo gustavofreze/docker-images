@@ -1,1 +1,10 @@
-.idea
+# JetBrains IDEs
+.idea/
+
+# macOS Finder metadata
+.DS_Store
+
+# Local environment overrides (guard against committing secrets)
+.env
+.env.local
+.env.*.local

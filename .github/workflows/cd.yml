@@ -4,13 +4,21 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'images/**'
-      - '.github/workflows/cd.yml'
+      - 'images/*/*/Dockerfile'
+      - 'images/*/*/.dockerignore'
+      - 'images/*/*/VERSION'
+      - 'images/*/*/constraints.txt'
+      - 'images/*/*/conf/**'
+      - 'images/*/*/bin/**'
+      - 'scripts/discover-images.sh'
+  workflow_dispatch:
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
 
 permissions:
   contents: read
-  packages: write
-  security-events: write
 
 env:
   GHCR_REGISTRY: ghcr.io
@@ -20,21 +28,44 @@ jobs:
   discover:
     name: Discover
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
+      families: ${{ steps.set-matrix.outputs.families }}
     steps:
       - uses: actions/checkout@v7
 
       - id: set-matrix
         run: |
-          chmod +x ./scripts/discover-images.sh
-          MATRIX=$(./scripts/discover-images.sh --format=json)
-          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+          echo "matrix=$(./scripts/discover-images.sh --format=json)" >> "$GITHUB_OUTPUT"
+          echo "families=$(./scripts/discover-images.sh --format=families)" >> "$GITHUB_OUTPUT"
+
+  review:
+    name: "Review ${{ matrix.family }} on ${{ matrix.runner }}"
+    needs: discover
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: true
+      matrix:
+        family: ${{ fromJson(needs.discover.outputs.families) }}
+        runner: [ ubuntu-latest, ubuntu-24.04-arm ]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Run the full gate
+        run: make review-${{ matrix.family }}
 
   publish:
-    name: "Publish ${{ matrix.name }}:${{ matrix.tag }}"
-    needs: discover
+    name: "Publish ${{ matrix.family }}:${{ matrix.tag }}"
+    needs: [ discover, review ]
     runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
     strategy:
       fail-fast: false
       matrix:
@@ -45,76 +76,96 @@ jobs:
       - uses: docker/setup-buildx-action@v4
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v4.5.2
+        uses: docker/login-action@v4.6.0
         with:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
       - name: Login to GitHub container registry
-        uses: docker/login-action@v4.5.2
+        uses: docker/login-action@v4.6.0
         with:
           registry: ${{ env.GHCR_REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push Docker image
+      - name: Build and push
+        id: build
         uses: docker/build-push-action@v7
         with:
           push: true
-          file: ${{ matrix.context }}/Dockerfile
           context: ${{ matrix.context }}
+          file: ${{ matrix.context }}/Dockerfile
+          target: ${{ matrix.target }}
           platforms: linux/amd64,linux/arm64
+          provenance: mode=max
+          sbom: true
           tags: |
-            ${{ secrets.DOCKER_HUB_USERNAME }}/${{ matrix.name }}:${{ matrix.tag }}
-            ${{ env.GHCR_REGISTRY }}/${{ github.repository_owner }}/${{ matrix.name }}:${{ matrix.tag }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+            ${{ secrets.DOCKER_HUB_USERNAME }}/${{ matrix.family }}:${{ matrix.tag }}
+            ${{ secrets.DOCKER_HUB_USERNAME }}/${{ matrix.family }}:${{ matrix.alias }}
+            ${{ env.GHCR_REGISTRY }}/${{ github.repository_owner }}/${{ matrix.family }}:${{ matrix.tag }}
+            ${{ env.GHCR_REGISTRY }}/${{ github.repository_owner }}/${{ matrix.family }}:${{ matrix.alias }}
+          cache-from: type=gha,scope=${{ matrix.family }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.family }}
           labels: |
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.version=${{ matrix.version }}
             org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v4.1.2
+
+      - name: Attach the VEX analysis to the published image
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+          NAMESPACE: ${{ secrets.DOCKER_HUB_USERNAME }}
+        run: |
+          set -euo pipefail
+
+          document="vex/${{ matrix.family }}.openvex.json"
+
+          if [[ ! -f "${document}" ]]; then
+            echo "no VEX document for ${{ matrix.family }}, nothing to attach"
+            exit 0
+          fi
+
+          cosign attest --yes --type openvex \
+            --predicate "${document}" \
+            "${NAMESPACE}/${{ matrix.family }}@${DIGEST}"
+
+          echo "attached ${document}; consumers read it with: trivy image --vex oci <image>"
 
   scan:
-    name: "Scan ${{ matrix.name }}:${{ matrix.tag }}"
+    name: "Scan ${{ matrix.family }}:${{ matrix.tag }}"
     needs: [ discover, publish ]
     runs-on: ubuntu-latest
-    continue-on-error: true
+    timeout-minutes: 20
     permissions:
       contents: read
       packages: read
       security-events: write
     strategy:
+      fail-fast: false
       matrix:
         include: ${{ fromJson(needs.discover.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v7
 
-      - name: Scan image
+      - name: Scan the published image
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           format: sarif
           output: trivy-results.sarif
-          version: v0.68.2
           severity: CRITICAL,HIGH
-          image-ref: "${{ env.GHCR_REGISTRY }}/${{ github.repository_owner }}/${{ matrix.name }}:${{ matrix.tag }}"
+          image-ref: "${{ env.GHCR_REGISTRY }}/${{ github.repository_owner }}/${{ matrix.family }}:${{ matrix.tag }}"
           limit-severities-for-sarif: true
         env:
           TRIVY_USERNAME: ${{ github.actor }}
           TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
 
-  cleanup:
-    name: Cleanup
-    needs: [ publish, scan ]
-    runs-on: ubuntu-latest
-    permissions:
-      packages: write
-    strategy:
-      matrix:
-        package: [ php, python ]
-    steps:
-      - name: Delete untagged versions
-        uses: actions/delete-package-versions@v5
+      - name: Upload scan results
+        uses: github/codeql-action/upload-sarif@v4.37.5
+        if: always()
         with:
-          package-name: ${{ matrix.package }}
-          package-type: container
-          min-versions-to-keep: 0
-          delete-only-untagged-versions: true
+          sarif_file: trivy-results.sarif
+          category: "trivy-${{ matrix.family }}-${{ matrix.target }}"
+

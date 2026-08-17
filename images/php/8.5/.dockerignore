@@ -1,0 +1,10 @@
+.git
+.idea
+.vscode
+*.md
+Dockerfile
+.dockerignore
+scripts/
+VERSION
+.env
+.env.*

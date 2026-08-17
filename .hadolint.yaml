@@ -1,2 +1,14 @@
+# Lint configuration for the review gate. ShellCheck runs on every RUN body. Only the rules below
+# are relaxed, each with a reason and the date it was accepted (2026-08-11). Do not widen this list
+# to silence a fixable finding.
 ignored:
+  # DL3018 "Pin versions in apk add". The Alpine repository is rolling and drops old versions, so a
+  # pinned apk version breaks the build the day the index moves rather than improving anything. The
+  # exact upstream image tag is the reproducibility boundary here, not the apk set. Everything
+  # fetched from outside that index is pinned exactly and checksum verified.
   - DL3018
+
+  # SC2086 "Double quote to prevent globbing and word splitting". The only occurrences are the
+  # deliberate word split of ${PHPIZE_DEPS}, a space-separated package list that must expand into
+  # separate arguments. Quoting it would pass one bogus package name.
+  - SC2086
