@@ -169,6 +169,12 @@ A build reads its inputs from the build context and from pinned, verified source
   against a sha256 recorded as an `ARG` in the Dockerfile, and only then installed onto `PATH`. An unverified artifact
   is never executable inside the image, not even between two instructions.
 - `ADD` is never used. It also fetches URLs and unpacks archives, which hides what enters the image.
+- A package manager invoked at build time pins its whole resolved tree, not just the packages named on the command line.
+  Pinning only the named ones leaves every transitive dependency floating to whatever the index serves that minute, and
+  the failure is invisible until two builds of the same commit disagree. Python does this through
+  `constraints.txt` beside the Dockerfile, bound in with `RUN --mount=type=bind` so it constrains the install without
+  entering a layer, and regenerated from the pinned base whenever a pinned tool version moves. The file is a constraint
+  and not a requirement, so it changes no image's contents on its own: a package nothing pulls stays absent.
 
 ## Lean layers
 

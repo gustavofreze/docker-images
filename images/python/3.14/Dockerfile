@@ -25,8 +25,10 @@ ENV PATH="/app/.venv/bin:${PATH}" \
     POETRY_CACHE_DIR=/tmp/poetry-cache \
     POETRY_VIRTUALENVS_IN_PROJECT=true
 
-RUN apk add --no-cache ca-certificates git build-base libffi-dev openssl-dev linux-headers \
-    && python3 -m pip install --no-cache-dir "pip==${PIP_VERSION}" "poetry==${POETRY_VERSION}" \
+RUN --mount=type=bind,source=constraints.txt,target=/tmp/constraints.txt \
+    apk add --no-cache ca-certificates git build-base libffi-dev openssl-dev linux-headers \
+    && python3 -m pip install --no-cache-dir --constraint /tmp/constraints.txt \
+        "pip==${PIP_VERSION}" "poetry==${POETRY_VERSION}" \
     && rm -rf /root/.cache
 
 RUN addgroup -g 1000 app \
@@ -94,11 +96,14 @@ ENV PIP_NO_CACHE_DIR=1 \
 
 USER 0
 
-RUN apk add --no-cache bash git \
+RUN --mount=type=bind,source=constraints.txt,target=/tmp/constraints.txt \
+    apk add --no-cache bash git \
     && apk add --no-cache --virtual .build-deps build-base \
     && python3 -m ensurepip \
-    && python3 -m pip install --no-cache-dir --upgrade "pip==${PIP_VERSION}" \
-    && python3 -m pip install --no-cache-dir "poetry==${POETRY_VERSION}" "debugpy==${DEBUGPY_VERSION}" \
+    && python3 -m pip install --no-cache-dir --constraint /tmp/constraints.txt \
+        --upgrade "pip==${PIP_VERSION}" \
+    && python3 -m pip install --no-cache-dir --constraint /tmp/constraints.txt \
+        "poetry==${POETRY_VERSION}" "debugpy==${DEBUGPY_VERSION}" \
     && apk del .build-deps \
     && rm -rf /root/.cache \
     && git config --system --add safe.directory /app

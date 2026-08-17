@@ -32,7 +32,8 @@ beyond Docker and GNU Make is installed on the host.
 The premises the images are held to:
 
 - **Exact upstream pins.** Every `FROM` names a patch version and a distro release, never a moving tag. An upstream tag
-  published less than 7 days ago is never adopted.
+  published less than 7 days ago is never adopted. A package manager run at build time pins its whole resolved tree, not
+  only the packages named on the command line, so the same commit builds the same image on any day and any runner.
 - **Hermetic builds.** No configuration or tool is fetched from the network at build time without a pinned version and a
   verified sha256. Configuration is copied from the build context.
 - **Non-root by default.** Every target an application runs drops to an unprivileged user. A target that keeps root is a
@@ -87,6 +88,7 @@ docker-images/
             ├── Dockerfile          # multi-target: builder, cli, runtime, development
             ├── VERSION
             ├── .dockerignore
+            ├── constraints.txt     # every version pip resolves, so a build is reproducible
             └── scripts/smoke
 ```
 

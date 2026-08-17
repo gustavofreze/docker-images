@@ -7,6 +7,7 @@ on:
       - 'images/*/*/Dockerfile'
       - 'images/*/*/.dockerignore'
       - 'images/*/*/VERSION'
+      - 'images/*/*/constraints.txt'
       - 'images/*/*/conf/**'
       - 'images/*/*/bin/**'
       - 'scripts/discover-images.sh'

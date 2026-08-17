@@ -119,7 +119,11 @@ For a new family or target:
 3. Write `scripts/smoke` sourcing the shared library and asserting what each target's class promises,
    per § Smoke contract.
 4. Pin the upstream image to an exact tag (patch and distro release) and honor the 7-day cooldown.
-   Pin every tool the same way, and checksum-verify anything fetched over plain HTTPS.
+   Pin every tool the same way, and checksum-verify anything fetched over plain HTTPS. If the family
+   runs a package manager at build time, pin its whole resolved tree beside the Dockerfile and bind it
+   in with `RUN --mount=type=bind`, the way `images/python/3.14/constraints.txt` does. Pinning only the
+   packages you name leaves the rest floating, and you find out when CI builds a different image from
+   the same commit. Add the file to the CD path filter, or a change to it publishes nothing.
 5. Wire the family into the Makefile: its coordinate variables at the top, then `lint-<family>`,
    `build-<family>`, `scan-<family>`, `audit-<family>`, `efficiency-<family>`, `smoke-<family>`,
    `publish-<family>`, and a `review-<family>` chaining them in gate order. Add each to its aggregate.
