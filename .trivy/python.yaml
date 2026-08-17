@@ -1,0 +1,34 @@
+# Gate policy for the Python family, not a vulnerability analysis. The analysis lives in
+# vex/python.openvex.json, is published alongside the images, and any consumer scanning with --vex gets
+# it. This file is read only by the Python scans, through --ignorefile, so nothing here reaches another
+# family.
+#
+# Both entries are the copies pip vendors inside its own wheel, listed in
+# pip/_vendor/bom.cdx.json, which Trivy reads as a separate component named "Python". They are not the
+# packages the image installs: the installed msgpack is pinned to 1.2.1 by constraints.txt and scans
+# clean, and setuptools is installed nowhere. pip 26.2.1, the newest release, still vendors msgpack
+# 1.1.2 and declares setuptools 70.3.0, so there is no pip to move to.
+#
+# The VEX already states both as not_affected, with reasoning verified inside the image: every target
+# sets PIP_NO_CACHE_DIR=1 so the msgpack decoder behind pip's HTTP cache is never fed remote bytes, and
+# `import setuptools` raises ModuleNotFoundError on all four targets. These entries exist because that
+# suppression proved environment dependent: the same image, scanner and document suppress both on this
+# machine and did not on the CI runner, and a gate that passes or fails by environment is not a gate.
+# They make the decision explicit instead of inherited.
+#
+# Neither entry carries a `paths` restriction, unlike .trivy/php.yaml. Trivy names this component
+# "Python" rather than a file path, so a path restriction matches nothing and the entry silently fails
+# to apply, which was measured before writing it this way. The cost is real: these two identifiers are
+# now accepted anywhere in the family, including in site-packages if they ever reappeared there. That
+# is why the two identifiers are named individually and no wildcard is used.
+#
+# Accepted 2026-08-17. Retires when a pip release vendors msgpack 1.2.1 or later, at which point the
+# finding disappears rather than being accepted. `expired_at` forces the question either way.
+vulnerabilities:
+    - id: GHSA-6v7p-g79w-8964
+      statement: "msgpack vendored inside pip, reachable only through the HTTP cache that PIP_NO_CACHE_DIR=1 disables."
+      expired_at: 2026-09-17
+
+    - id: CVE-2025-47273
+      statement: "setuptools declared in pip's vendor manifest but not importable in any target."
+      expired_at: 2026-09-17
