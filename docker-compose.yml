@@ -12,9 +12,9 @@ services:
     dive:
         image: wagoodman/dive:v0.13.1
     grype:
-        image: anchore/grype:v0.116.1
+        image: anchore/grype:v0.117.0
     trivy:
-        image: aquasec/trivy:0.73.0
+        image: aquasec/trivy:0.74.0
     dockle:
         image: goodwithtech/dockle:v0.4.15
     hadolint:
