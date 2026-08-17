@@ -13,6 +13,7 @@ set -euo pipefail
 #   builder-image      Tag of the builder toolchain image to verify.
 #   cli-image          Tag of the cli tooling image to verify.
 
+# shellcheck source=SCRIPTDIR/../../../../scripts/smoke-lib.sh
 source "${SMOKE_LIB:?SMOKE_LIB not set}"
 
 run() {
@@ -85,7 +86,7 @@ verify_cli_image() {
 
     verify_shared_contract "${image}" "cli"
     assert_contains "Poetry (version 2.4.1)" "$(run "${image}" poetry --version)" "Poetry present in cli"
-    assert_contains "Docker version" "$(run "${image}" docker --version)" "docker CLI present in cli"
+    assert_absent "${image}" "docker" "docker CLI absent from cli"
     assert_contains "GNU bash" "$(run "${image}" bash --version)" "bash present in cli"
     assert_contains "git version" "$(run "${image}" git --version)" "git present in cli"
 }

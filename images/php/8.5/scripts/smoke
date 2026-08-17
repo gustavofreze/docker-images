@@ -11,6 +11,7 @@ set -euo pipefail
 #   builder-image      Tag of the builder toolchain image to verify.
 #   cli-image          Tag of the cli tooling image to verify.
 
+# shellcheck source=SCRIPTDIR/../../../../scripts/smoke-lib.sh
 source "${SMOKE_LIB:?SMOKE_LIB not set}"
 
 readonly CONTAINER_NAME="gustavofreze-php-smoke"
@@ -101,6 +102,7 @@ verify_builder_image() {
     assert_contains "pdo_mysql" "${modules}" "pdo_mysql extension present in the builder"
     assert_contains "zip" "${modules}" "zip extension present in the builder"
 
+    assert_not_contains "php-fpm" "$(docker inspect --format '{{json .Config.Cmd}}' "${image}")" "builder defaults to the PHP shell, not the FPM server"
     assert_absent "${image}" "gcc" "compiler pruned from the builder after the extension build"
     assert_absent "${image}" "docker" "docker CLI absent from the builder"
 }
@@ -119,6 +121,7 @@ verify_cli_image() {
     assert_contains "version 4.0.1" "$(run "${image}" phpcs --version)" "pinned CodeSniffer version present in cli"
     assert_contains "version 4.0.1" "$(run "${image}" phpcbf --version)" "pinned CodeSniffer fixer present in cli"
     assert_contains "PHPMD 2.15.0" "$(run "${image}" phpmd --version)" "pinned Mess Detector version present in cli"
+    assert_not_contains "php-fpm" "$(docker inspect --format '{{json .Config.Cmd}}' "${image}")" "cli defaults to the PHP shell, not the FPM server"
     assert_contains "/var/www/html" "$(run "${image}" pwd)" "cli working directory is the application root"
 }
 

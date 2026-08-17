@@ -32,60 +32,107 @@ PYTHON_RUNTIME_TAG     := $(PYTHON_NAMESPACE):$(PYTHON_MINOR)-runtime-$(PYTHON_V
 PYTHON_DEVELOPMENT_TAG := $(PYTHON_NAMESPACE):$(PYTHON_MINOR)-development-$(PYTHON_VERSION)
 PYTHON_CLI_TAG         := $(PYTHON_NAMESPACE):$(PYTHON_MINOR)-cli-$(PYTHON_VERSION)
 
-# ---- Publication ------------------------------------------------------------
-# Docker Hub by default, override for any other registry (REGISTRY=ghcr.io).
+# ---- Publication (REGISTRY=ghcr.io for the GitHub registry) -----------------
 REGISTRY ?= docker.io
 
 # ---- Discovered Dockerfiles (one per build unit, never hardcoded) ------------
 DOCKERFILES := $(wildcard images/*/*/Dockerfile)
 
+# ---- Discovered shell scripts (found by shebang, so an extensionless one counts)
+SHELL_SCRIPTS := $(shell grep -rl '^#!/usr/bin/env bash' scripts images | sort)
+
 # ---- Shared smoke library ---------------------------------------------------
-# Exported so each smoke invocation resolves it by absolute path, never an implicit working
-# directory.
 SMOKE_LIB := $(CURDIR)/scripts/smoke-lib.sh
 export SMOKE_LIB
 
-# ---- Validators (containerized, nothing installed on the host) --------------
-# Each pins an exact tool version, coherent with the repository's upstream pin policy. The DOCKLE
-# variants below differ only in which CIS checks they exempt, and each exemption is justified where
-# the target it covers is audited.
+# ---- Validator images -------------------------------------------------------
+# Read from docker-compose.yml so the version lives in exactly one place, and that place is an
+# ecosystem Dependabot understands. Hardcoding a tag here would put it outside every updater.
+TOOLS_COMPOSE := docker-compose.yml
 
-TRIVY_RUN := docker run --rm \
+# The search stops at the next service key, so a service missing its own image: line resolves to
+# nothing and trips the guard below. Without that bound the scan walks into the next block and returns
+# a different tool's image, which is worse than an error: the gate would run the wrong validator.
+tool_image = $(shell awk -v service="$(1):" \
+    '$$1==service{found=1; next} found&&/^    [^ ]/{exit} found&&$$1=="image:"{print $$2; exit}' \
+    $(TOOLS_COMPOSE))
+
+DIVE_IMAGE       := $(call tool_image,dive)
+GRYPE_IMAGE      := $(call tool_image,grype)
+TRIVY_IMAGE      := $(call tool_image,trivy)
+DOCKLE_IMAGE     := $(call tool_image,dockle)
+HADOLINT_IMAGE   := $(call tool_image,hadolint)
+SHELLCHECK_IMAGE := $(call tool_image,shellcheck)
+
+# A silently empty image would turn `docker run` into a confusing failure deep inside a gate stage.
+$(foreach v,DIVE_IMAGE GRYPE_IMAGE TRIVY_IMAGE DOCKLE_IMAGE HADOLINT_IMAGE SHELLCHECK_IMAGE,\
+  $(if $($(v)),,$(error $(v) not found in $(TOOLS_COMPOSE))))
+
+# ---- Validators (containerized, nothing installed on the host) ---------------
+# The DOCKLE variants differ only in the CIS checks they exempt, which their DOCKLE_IGNORES lines
+# name. Why each exemption is allowed lives in the docker-images rule, section Where the reasoning
+# lives.
+
+# A scan reads only the documents that describe the image in front of it, so both are per family and
+# each is passed only to the family it was written for. Another family's VEX would be inert, because a
+# statement is scoped to its product purl, but it would still be a claim about an image it does not
+# describe. Another family's gate policy would be worse: a repository-wide exemption wearing a local
+# name. A family with no document expands to nothing and scans bare, which is the safe direction.
+vex_flag     = $(if $(wildcard vex/$(1).openvex.json),--vex /vex/$(1).openvex.json)
+grype_policy = $(if $(wildcard .grype/$(1).yaml),-v $(CURDIR)/.grype/$(1).yaml:/policy.yaml:ro -e GRYPE_CONFIG=/policy.yaml)
+trivy_policy = $(if $(wildcard .trivy/$(1).yaml),-v $(CURDIR)/.trivy/$(1).yaml:/policy.yaml:ro)
+trivy_flag   = $(if $(wildcard .trivy/$(1).yaml),--ignorefile /policy.yaml)
+
+# Two scanners on purpose. Trivy reads the distro security database, Grype cross-references upstream
+# advisories and Go module data, and neither is a superset of the other: Grype caught a HIGH in the
+# Go stdlib of a vendored binary that Trivy reported clean. A single scanner is not coverage.
+GRYPE_RUN = docker run --rm \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    -v gustavofreze-grype-cache:/root/.cache/grype \
+    -v $(CURDIR)/vex:/vex:ro \
+    $(call grype_policy,$(1)) \
+    $(GRYPE_IMAGE) --only-fixed --fail-on high $(call vex_flag,$(1))
+
+TRIVY_RUN = docker run --rm \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -v gustavofreze-trivy-cache:/root/.cache/trivy \
-    aquasec/trivy:0.71.1 image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1
+    -v $(CURDIR)/vex:/vex:ro \
+    $(call trivy_policy,$(1)) \
+    $(TRIVY_IMAGE) image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 \
+    $(call vex_flag,$(1)) $(call trivy_flag,$(1))
 
-# Same scanner plus the accepted findings of the Python family, scoped to the one family it applies
-# to and never repository wide. Each entry in that file carries a justification and a revisit
-# condition.
-TRIVY_RUN_PYTHON := docker run --rm \
+# The one scan that reads nothing at all. Its single caller is the Python runtime, in scan-python.
+TRIVY_RUN_BARE := docker run --rm \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -v gustavofreze-trivy-cache:/root/.cache/trivy \
-    -v $(CURDIR)/images/python/3.14/.trivyignore:/python.trivyignore:ro \
-    aquasec/trivy:0.71.1 image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 \
-    --ignorefile /python.trivyignore
+    $(TRIVY_IMAGE) image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1
 
 HADOLINT_RUN := docker run --rm -i \
     -v $(CURDIR)/.hadolint.yaml:/.hadolint.yaml:ro \
-    hadolint/hadolint:v2.12.0-alpine hadolint --config /.hadolint.yaml -
+    $(HADOLINT_IMAGE) hadolint --config /.hadolint.yaml -
 
-# Strict: non-root (CIS-DI-0001) and health check (CIS-DI-0006) both required.
+# hadolint shell-checks the RUN bodies, this covers the standalone scripts the shell-scripts rule
+# governs. No severity floor: the scripts are clean at ShellCheck's strictest, which is what makes
+# the quoting and cd-guard items of that rule enforced rather than aspirational. --external-sources
+# follows the `shellcheck source=` directives into the shared smoke library.
+SHELLCHECK_RUN := docker run --rm \
+    -v $(CURDIR):/mnt:ro -w /mnt \
+    $(SHELLCHECK_IMAGE) --external-sources
+
 DOCKLE_RUN := docker run --rm \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -w / -e DOCKLE_EXIT_LEVEL=warn \
-    goodwithtech/dockle:v0.4.14 --exit-code 1
+    $(DOCKLE_IMAGE) --exit-code 1
 
-# Health check exempt, for a target that starts no process of its own. Non-root stays required.
 DOCKLE_RUN_NO_PROCESS := docker run --rm \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -w / -e DOCKLE_EXIT_LEVEL=warn -e DOCKLE_IGNORES=CIS-DI-0006 \
-    goodwithtech/dockle:v0.4.14 --exit-code 1
+    $(DOCKLE_IMAGE) --exit-code 1
 
-# Non-root exempt too, for a cli tooling image that must write into a caller-owned bind mount.
 DOCKLE_RUN_ROOT := docker run --rm \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -w / -e DOCKLE_EXIT_LEVEL=warn -e DOCKLE_IGNORES=CIS-DI-0001,CIS-DI-0006 \
-    goodwithtech/dockle:v0.4.14 --exit-code 1
+    $(DOCKLE_IMAGE) --exit-code 1
 
 # One inherited finding, accepted for the Python family only. The python:alpine base pins the shared
 # libraries of the interpreter it just compiled with `xargs -rt apk add --no-network --virtual
@@ -98,18 +145,17 @@ PYTHON_INHERITED_IGNORES := DKL-DI-0004
 DOCKLE_RUN_PYTHON := docker run --rm \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -w / -e DOCKLE_EXIT_LEVEL=warn -e DOCKLE_IGNORES=CIS-DI-0006,$(PYTHON_INHERITED_IGNORES) \
-    goodwithtech/dockle:v0.4.14 --exit-code 1
+    $(DOCKLE_IMAGE) --exit-code 1
 
 DOCKLE_RUN_PYTHON_ROOT := docker run --rm \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -w / -e DOCKLE_EXIT_LEVEL=warn -e DOCKLE_IGNORES=CIS-DI-0001,CIS-DI-0006,$(PYTHON_INHERITED_IGNORES) \
-    goodwithtech/dockle:v0.4.14 --exit-code 1
+    $(DOCKLE_IMAGE) --exit-code 1
 
-# Layer-efficiency auditor: non-interactive CI mode against the thresholds in .dive-ci.
 DIVE_RUN := docker run --rm -e CI=true \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -v $(CURDIR)/.dive-ci:/.dive-ci:ro \
-    wagoodman/dive:v0.13.1 --ci-config /.dive-ci
+    $(DIVE_IMAGE) --ci-config /.dive-ci
 
 # =============================================================================
 # Targets
@@ -125,19 +171,30 @@ discover-json: ## @build Emit the build matrix consumed by the CI and CD workflo
 	@./scripts/discover-images.sh --format=json
 
 .PHONY: lint
-lint: ## @verify Lint every discovered Dockerfile (ShellCheck on RUN bodies included)
+lint: lint-scripts ## @verify Lint every discovered Dockerfile and shell script
 	@for dockerfile in $(DOCKERFILES); do
 		echo "[lint] $${dockerfile}"
 		$(HADOLINT_RUN) < "$${dockerfile}"
 	done
 
+.PHONY: lint-scripts
+lint-scripts: ## @verify ShellCheck every discovered shell script
+	@for script in $(SHELL_SCRIPTS); do
+		echo "[lint] $${script}"
+	done
+	@$(SHELLCHECK_RUN) $(SHELL_SCRIPTS)
+
+# Each family-scoped lint pulls in lint-scripts, because the workflows run review-<family> and never
+# the aggregate. Without it ShellCheck would run only on a developer machine, which is the opposite of
+# a gate. lint-scripts is .PHONY and make runs it once per invocation, so the full review does not
+# repeat it.
 .PHONY: lint-php
-lint-php: ## @verify Lint the PHP Dockerfile
+lint-php: lint-scripts ## @verify Lint the PHP Dockerfile and every shell script
 	@echo "[lint] images/php/8.5/Dockerfile"
 	@$(HADOLINT_RUN) < images/php/8.5/Dockerfile
 
 .PHONY: lint-python
-lint-python: ## @verify Lint the Python Dockerfile
+lint-python: lint-scripts ## @verify Lint the Python Dockerfile and every shell script
 	@echo "[lint] images/python/3.14/Dockerfile"
 	@$(HADOLINT_RUN) < images/python/3.14/Dockerfile
 
@@ -163,26 +220,31 @@ scan: scan-php scan-python ## @verify Scan every image family for HIGH and CRITI
 
 .PHONY: scan-php
 scan-php: ## @verify Scan the PHP images for HIGH and CRITICAL vulnerabilities
-	@$(TRIVY_RUN) $(PHP_RUNTIME_TAG)
-	@$(TRIVY_RUN) $(PHP_DEVELOPMENT_TAG)
-	@$(TRIVY_RUN) $(PHP_BUILDER_TAG)
-	@$(TRIVY_RUN) $(PHP_CLI_TAG)
+	@for tag in $(PHP_RUNTIME_TAG) $(PHP_DEVELOPMENT_TAG) $(PHP_BUILDER_TAG) $(PHP_CLI_TAG); do
+		echo "[scan] $${tag}"
+		$(call TRIVY_RUN,php) "$${tag}"
+		$(call GRYPE_RUN,php) "$${tag}"
+	done
 
 .PHONY: scan-python
 scan-python: ## @verify Scan the Python images for HIGH and CRITICAL vulnerabilities
-	@# The runtime carries no installer, so it is scanned with no ignore file at all: a change that
-	@# puts pip back into production fails here rather than inheriting an exemption.
-	@$(TRIVY_RUN) $(PYTHON_RUNTIME_TAG)
-	@$(TRIVY_RUN_PYTHON) $(PYTHON_DEVELOPMENT_TAG)
-	@$(TRIVY_RUN_PYTHON) $(PYTHON_BUILDER_TAG)
-	@$(TRIVY_RUN_PYTHON) $(PYTHON_CLI_TAG)
+	@# The runtime carries no installer, so Trivy scans it with no VEX at all. Every statement the VEX would have
+	@# suppressed covers a package pip vendors, so putting pip back into production fails here rather than inheriting
+	@# an exemption.
+	@echo "[scan] $(PYTHON_RUNTIME_TAG)"
+	@$(TRIVY_RUN_BARE) $(PYTHON_RUNTIME_TAG)
+	@$(call GRYPE_RUN,python) $(PYTHON_RUNTIME_TAG)
+	@for tag in $(PYTHON_DEVELOPMENT_TAG) $(PYTHON_BUILDER_TAG) $(PYTHON_CLI_TAG); do
+		echo "[scan] $${tag}"
+		$(call TRIVY_RUN,python) "$${tag}"
+		$(call GRYPE_RUN,python) "$${tag}"
+	done
 
 .PHONY: audit
 audit: audit-php audit-python ## @verify Audit every image against the CIS Docker Benchmark
 
 .PHONY: audit-php
 audit-php: ## @verify Audit the PHP images against the CIS Docker Benchmark
-	@# builder drops to www-data but runs no process, so only its health check is exempt.
 	@$(DOCKLE_RUN) $(PHP_RUNTIME_TAG)
 	@$(DOCKLE_RUN) $(PHP_DEVELOPMENT_TAG)
 	@$(DOCKLE_RUN_NO_PROCESS) $(PHP_BUILDER_TAG)
@@ -190,8 +252,6 @@ audit-php: ## @verify Audit the PHP images against the CIS Docker Benchmark
 
 .PHONY: audit-python
 audit-python: ## @verify Audit the Python images against the CIS Docker Benchmark
-	@# No Python target starts a process of its own, so the health check is exempt on all four.
-	@# The first three still drop to the app user and are audited non-root.
 	@$(DOCKLE_RUN_PYTHON) $(PYTHON_RUNTIME_TAG)
 	@$(DOCKLE_RUN_PYTHON) $(PYTHON_DEVELOPMENT_TAG)
 	@$(DOCKLE_RUN_PYTHON) $(PYTHON_BUILDER_TAG)

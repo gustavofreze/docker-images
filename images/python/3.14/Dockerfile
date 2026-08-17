@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM python:3.14.6-alpine3.24 AS builder
+FROM python:3.14.7-alpine3.24 AS builder
 
 LABEL org.opencontainers.image.url="https://github.com/gustavofreze/docker-images" \
       org.opencontainers.image.title="gustavofreze/python-builder" \
@@ -35,19 +35,19 @@ RUN addgroup -g 1000 app \
 
 WORKDIR /app
 
-USER app
+USER 1000
 
 FROM builder AS cli
 
 LABEL org.opencontainers.image.title="gustavofreze/python-cli" \
-      org.opencontainers.image.description="Python 3.14 CLI tooling image: Poetry, git, bash, docker CLI"
+      org.opencontainers.image.description="Python 3.14 CLI tooling image: Poetry, git, bash, curl"
 
 # hadolint ignore=DL3002
-USER root
+USER 0
 
-RUN apk add --no-cache bash curl docker-cli
+RUN apk add --no-cache bash curl
 
-FROM python:3.14.6-alpine3.24 AS runtime
+FROM python:3.14.7-alpine3.24 AS runtime
 
 LABEL org.opencontainers.image.url="https://github.com/gustavofreze/docker-images" \
       org.opencontainers.image.title="gustavofreze/python" \
@@ -72,7 +72,7 @@ RUN apk add --no-cache ca-certificates \
 
 WORKDIR /app
 
-USER app
+USER 1000
 
 CMD ["python3"]
 
@@ -92,7 +92,7 @@ ENV PIP_NO_CACHE_DIR=1 \
     POETRY_CACHE_DIR=/tmp/poetry-cache \
     POETRY_VIRTUALENVS_IN_PROJECT=true
 
-USER root
+USER 0
 
 RUN apk add --no-cache bash git \
     && apk add --no-cache --virtual .build-deps build-base \
@@ -103,4 +103,4 @@ RUN apk add --no-cache bash git \
     && rm -rf /root/.cache \
     && git config --system --add safe.directory /app
 
-USER app
+USER 1000

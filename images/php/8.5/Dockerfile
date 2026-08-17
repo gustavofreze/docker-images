@@ -1,6 +1,10 @@
 # syntax=docker/dockerfile:1
 
-FROM php:8.5.9-cli-alpine3.24 AS builder
+FROM composer:2.10.2 AS composer
+
+FROM docker:29.7.1-cli-alpine3.24 AS docker-cli
+
+FROM php:8.5.9-fpm-alpine3.24 AS builder
 
 LABEL org.opencontainers.image.url="https://github.com/gustavofreze/docker-images" \
       org.opencontainers.image.title="gustavofreze/php-builder" \
@@ -17,7 +21,7 @@ RUN apk add --no-cache ca-certificates git unzip libzip \
     && apk del .build-deps \
     && mv "${PHP_INI_DIR}/php.ini-production" "${PHP_INI_DIR}/php.ini"
 
-COPY --from=composer:2.10.2 /usr/bin/composer /usr/local/bin/composer
+COPY --from=composer /usr/bin/composer /usr/local/bin/composer
 
 ENV COMPOSER_ALLOW_SUPERUSER=1 \
     COMPOSER_HOME=/composer
@@ -28,7 +32,9 @@ RUN install -d -o www-data -g www-data /composer \
     && chown www-data:www-data /var/www/html \
     && git config --system --add safe.directory /var/www/html
 
-USER www-data
+USER 82
+
+CMD ["php", "-a"]
 
 FROM builder AS cli
 
@@ -43,9 +49,11 @@ ARG PHPCS_SHA256=a211817baf28918b2cff8e80af5d53d7e7060f9761384c0d9df0f003afb51a4
 ARG PHPCBF_SHA256=2b6c98c48eafc2e211cec397a0e9693010b09791760b93eef2606b38df5351af
 
 # hadolint ignore=DL3002
-USER root
+USER 0
 
-RUN apk add --no-cache bash curl docker-cli \
+COPY --from=docker-cli /usr/local/bin/docker /usr/local/bin/docker
+
+RUN apk add --no-cache bash curl \
     && apk add --no-cache --virtual .build-deps ${PHPIZE_DEPS} linux-headers \
     && pecl install "xdebug-${XDEBUG_VERSION}" \
     && docker-php-ext-enable xdebug \
@@ -95,7 +103,7 @@ WORKDIR /var/www/html
 
 RUN chown www-data:www-data /var/www/html
 
-USER www-data
+USER 82
 
 HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
     CMD ["php-fpm-healthcheck"]
@@ -109,7 +117,7 @@ LABEL org.opencontainers.image.title="gustavofreze/php-development" \
 
 ARG XDEBUG_VERSION=3.5.3
 
-USER root
+USER 0
 
 COPY conf/opcache.dev.ini ${PHP_INI_DIR}/conf.d/zz-gustavofreze-20-opcache.ini
 COPY conf/xdebug.ini ${PHP_INI_DIR}/conf.d/zz-gustavofreze-30-xdebug.ini
@@ -123,7 +131,7 @@ RUN apk add --no-cache bash git unzip libzip \
     && apk del .build-deps \
     && rm -rf /tmp/pear
 
-COPY --from=composer:2.10.2 /usr/bin/composer /usr/local/bin/composer
+COPY --from=composer /usr/bin/composer /usr/local/bin/composer
 
 ENV COMPOSER_ALLOW_SUPERUSER=1 \
     COMPOSER_HOME=/composer
@@ -131,4 +139,4 @@ ENV COMPOSER_ALLOW_SUPERUSER=1 \
 RUN install -d -o www-data -g www-data /composer \
     && git config --system --add safe.directory /var/www/html
 
-USER www-data
+USER 82

@@ -1,0 +1,154 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "https://github.com/gustavofreze/docker-images/vex/php-8.5",
+  "author": "Gustavo Freze",
+  "role": "Image maintainer",
+  "timestamp": "2026-08-17T12:40:00Z",
+  "version": 1,
+  "statements": [
+    {
+      "vulnerability": {
+        "name": "CVE-2026-33818"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/php?repository_url=index.docker.io%2Fgustavofreze%2Fphp",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib"
+            }
+          ]
+        }
+      ],
+      "status": "affected",
+      "action_statement": "Present only in the cli target, in the Go standard library compiled into the docker CLI it copies from docker:29.7.1-cli-alpine3.24. Fixed upstream in Go 1.26.6. No docker CLI image built with 1.26.6 has been published on any tag or distro release, so there is nothing to pin to yet. The pin moves as soon as one ships and clears the 7-day upstream cooldown. A consumer who does not shell out to docker from this image is not exercising the affected code at all.",
+      "action_statement_timestamp": "2026-08-17T12:40:00Z"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-39821"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/php?repository_url=index.docker.io%2Fgustavofreze%2Fphp",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib"
+            }
+          ]
+        }
+      ],
+      "status": "affected",
+      "action_statement": "Present only in the cli target, in the Go standard library compiled into the docker CLI it copies from docker:29.7.1-cli-alpine3.24. Fixed upstream in Go 1.26.6. No docker CLI image built with 1.26.6 has been published on any tag or distro release, so there is nothing to pin to yet. The pin moves as soon as one ships and clears the 7-day upstream cooldown. A consumer who does not shell out to docker from this image is not exercising the affected code at all.",
+      "action_statement_timestamp": "2026-08-17T12:40:00Z"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-46600"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/php?repository_url=index.docker.io%2Fgustavofreze%2Fphp",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib"
+            }
+          ]
+        }
+      ],
+      "status": "affected",
+      "action_statement": "Present only in the cli target, in the Go standard library compiled into the docker CLI it copies from docker:29.7.1-cli-alpine3.24. Fixed upstream in Go 1.26.6. No docker CLI image built with 1.26.6 has been published on any tag or distro release, so there is nothing to pin to yet. The pin moves as soon as one ships and clears the 7-day upstream cooldown. A consumer who does not shell out to docker from this image is not exercising the affected code at all.",
+      "action_statement_timestamp": "2026-08-17T12:40:00Z"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-56853"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/php?repository_url=index.docker.io%2Fgustavofreze%2Fphp",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib"
+            }
+          ]
+        }
+      ],
+      "status": "affected",
+      "action_statement": "Present only in the cli target, in the Go standard library compiled into the docker CLI it copies from docker:29.7.1-cli-alpine3.24. Fixed upstream in Go 1.26.6. No docker CLI image built with 1.26.6 has been published on any tag or distro release, so there is nothing to pin to yet. The pin moves as soon as one ships and clears the 7-day upstream cooldown. A consumer who does not shell out to docker from this image is not exercising the affected code at all.",
+      "action_statement_timestamp": "2026-08-17T12:40:00Z"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-56858"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/php?repository_url=index.docker.io%2Fgustavofreze%2Fphp",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib"
+            }
+          ]
+        }
+      ],
+      "status": "affected",
+      "action_statement": "Present only in the cli target, in the Go standard library compiled into the docker CLI it copies from docker:29.7.1-cli-alpine3.24. Fixed upstream in Go 1.26.6. No docker CLI image built with 1.26.6 has been published on any tag or distro release, so there is nothing to pin to yet. The pin moves as soon as one ships and clears the 7-day upstream cooldown. A consumer who does not shell out to docker from this image is not exercising the affected code at all.",
+      "action_statement_timestamp": "2026-08-17T12:40:00Z"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-56859"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/php?repository_url=index.docker.io%2Fgustavofreze%2Fphp",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib"
+            }
+          ]
+        }
+      ],
+      "status": "affected",
+      "action_statement": "Present only in the cli target, in the Go standard library compiled into the docker CLI it copies from docker:29.7.1-cli-alpine3.24. Fixed upstream in Go 1.26.6. No docker CLI image built with 1.26.6 has been published on any tag or distro release, so there is nothing to pin to yet. The pin moves as soon as one ships and clears the 7-day upstream cooldown. A consumer who does not shell out to docker from this image is not exercising the affected code at all.",
+      "action_statement_timestamp": "2026-08-17T12:40:00Z"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-56860"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/php?repository_url=index.docker.io%2Fgustavofreze%2Fphp",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib"
+            }
+          ]
+        }
+      ],
+      "status": "affected",
+      "action_statement": "Present only in the cli target, in the Go standard library compiled into the docker CLI it copies from docker:29.7.1-cli-alpine3.24. Fixed upstream in Go 1.26.6. No docker CLI image built with 1.26.6 has been published on any tag or distro release, so there is nothing to pin to yet. The pin moves as soon as one ships and clears the 7-day upstream cooldown. A consumer who does not shell out to docker from this image is not exercising the affected code at all.",
+      "action_statement_timestamp": "2026-08-17T12:40:00Z"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-56862"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/php?repository_url=index.docker.io%2Fgustavofreze%2Fphp",
+          "subcomponents": [
+            {
+              "@id": "pkg:golang/stdlib"
+            }
+          ]
+        }
+      ],
+      "status": "affected",
+      "action_statement": "Present only in the cli target, in the Go standard library compiled into the docker CLI it copies from docker:29.7.1-cli-alpine3.24. Fixed upstream in Go 1.26.6. No docker CLI image built with 1.26.6 has been published on any tag or distro release, so there is nothing to pin to yet. The pin moves as soon as one ships and clears the 7-day upstream cooldown. A consumer who does not shell out to docker from this image is not exercising the affected code at all.",
+      "action_statement_timestamp": "2026-08-17T12:40:00Z"
+    }
+  ]
+}

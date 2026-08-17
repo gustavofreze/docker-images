@@ -16,11 +16,10 @@ set -euo pipefail
 
 readonly IMAGES_DIRECTORY="images"
 
-format_json() {
-    local entries=("$@")
-
-    printf '[%s]\n' "$(join_with_comma "${entries[@]}")"
-}
+# The closed stage vocabulary of the docker-images rule. A Dockerfile may name any other stage it
+# needs, for a pinned upstream binary it copies from, and that stage is deliberately not a target: it
+# publishes no tag. Without this list every helper stage would become one.
+readonly PUBLISHED_TARGETS="builder cli runtime development"
 
 join_with_comma() {
     local separator=""
@@ -32,15 +31,31 @@ join_with_comma() {
     done
 }
 
-# Reads the target list straight out of the named build stages, so it is never restated here.
-read_targets() {
-    local dockerfile="${1:?Usage: read_targets <dockerfile>}"
+is_published_target() {
+    local candidate="${1:?Usage: is_published_target <stage>}"
 
-    grep -oE '^FROM[[:space:]]+.*[[:space:]]+AS[[:space:]]+[A-Za-z0-9_.-]+' "${dockerfile}" \
-        | awk '{print $NF}'
+    case " ${PUBLISHED_TARGETS} " in
+        *" ${candidate} "*)
+            return 0
+            ;;
+    esac
+
+    return 1
 }
 
-# Emits one JSON object per target on its own line. The caller decides how to render them.
+read_targets() {
+    local dockerfile="${1:?Usage: read_targets <dockerfile>}"
+    local stage
+
+    while IFS= read -r stage; do
+        is_published_target "${stage}" || continue
+        printf '%s\n' "${stage}"
+    done < <(
+        grep -oE '^FROM[[:space:]]+.*[[:space:]]+AS[[:space:]]+[A-Za-z0-9_.-]+' "${dockerfile}" \
+            | awk '{print $NF}'
+    )
+}
+
 build_entries() {
     local dockerfile context family minor version target
 
@@ -90,6 +105,12 @@ build_families() {
     printf '[%s]\n' "$(join_with_comma "${families[@]}")"
 }
 
+format_json() {
+    local entries=("$@")
+
+    printf '[%s]\n' "$(join_with_comma "${entries[@]}")"
+}
+
 format_readable() {
     local entries=("$@")
     local entry
@@ -103,6 +124,8 @@ format_readable() {
     done
 }
 
+# Reads the target list straight out of the named build stages, so it is never restated here.
+# Emits one JSON object per target on its own line. The caller decides how to render them.
 main() {
     local format="json"
     local argument

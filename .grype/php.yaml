@@ -1,0 +1,34 @@
+# Gate policy for the PHP family, not a vulnerability analysis. The analysis lives in
+# vex/php.openvex.json, is published alongside the images, and any consumer scanning with --vex gets
+# it. This file is read only by the PHP scans, through GRYPE_CONFIG, so nothing here reaches another
+# family.
+#
+# Same acceptance as .trivy/php.yaml, written in Grype's vocabulary. The two files are not duplicates:
+# Trivy names these by CVE and Grype by GO advisory, and the two disagree on both count and severity
+# for the identical binary. Whichever scanner is judging, the subject is the Go standard library
+# compiled into the docker CLI the `cli` target copies from the pinned official image.
+#
+# Go fixed all of them in 1.26.6. No docker CLI image built with 1.26.6 exists yet, on any tag or
+# distro release, so the remediation is real but not available to pin. Only the four High entries are
+# here, because --fail-on high is what stops the gate: GO-2026-6218 is reported at Medium and passes on
+# its own, so suppressing it would be suppression beyond the decision actually being made.
+#
+# Grype has no expiry field, unlike the Trivy policy beside it, so this block will not lapse on its
+# own. Accepted 2026-08-17. Delete it when the pin moves to a docker CLI built with Go 1.26.6 or newer.
+ignore:
+    - vulnerability: GO-2026-5026
+      package:
+          name: stdlib
+          type: go-module
+    - vulnerability: GO-2026-6090
+      package:
+          name: stdlib
+          type: go-module
+    - vulnerability: GO-2026-5972
+      package:
+          name: stdlib
+          type: go-module
+    - vulnerability: GO-2026-5942
+      package:
+          name: stdlib
+          type: go-module

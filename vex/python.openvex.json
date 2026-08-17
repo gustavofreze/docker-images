@@ -1,0 +1,118 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "https://github.com/gustavofreze/docker-images/vex/python-3.14",
+  "author": "Gustavo Freze",
+  "role": "Image maintainer",
+  "timestamp": "2026-08-12T13:00:00Z",
+  "version": 3,
+  "statements": [
+    {
+      "vulnerability": {
+        "name": "CVE-2025-47273"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/python?repository_url=index.docker.io%2Fgustavofreze%2Fpython",
+          "subcomponents": [
+            {
+              "@id": "pkg:pypi/setuptools"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "pip declares setuptools in its vendor manifest but ships only the pkg_resources subpackage. Verified inside the image: `import setuptools` raises ModuleNotFoundError and package_index.py, the file this advisory covers, does not exist."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-59890"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/python?repository_url=index.docker.io%2Fgustavofreze%2Fpython",
+          "subcomponents": [
+            {
+              "@id": "pkg:pypi/setuptools"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Same as CVE-2025-47273: the setuptools package is absent from the image, only pip's vendored pkg_resources is present."
+    },
+    {
+      "vulnerability": {
+        "name": "GHSA-6v7p-g79w-8964"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/python?repository_url=index.docker.io%2Fgustavofreze%2Fpython",
+          "subcomponents": [
+            {
+              "@id": "pkg:pypi/msgpack"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_cannot_be_controlled_by_adversary",
+      "impact_statement": "msgpack is vendored inside pip, where it backs the CacheControl HTTP cache. Every image here sets PIP_NO_CACHE_DIR=1, so that cache is off and the decoder is never fed remote bytes."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-57585"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/python?repository_url=index.docker.io%2Fgustavofreze%2Fpython",
+          "subcomponents": [
+            {
+              "@id": "pkg:pypi/msgpack"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_cannot_be_controlled_by_adversary",
+      "impact_statement": "Same reachability argument as GHSA-6v7p-g79w-8964."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-15308"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/python?repository_url=index.docker.io%2Fgustavofreze%2Fpython",
+          "subcomponents": [
+            {
+              "@id": "pkg:generic/python"
+            }
+          ]
+        }
+      ],
+      "status": "affected",
+      "action_statement": "No fix exists on the CPython 3.14 line. The only published fix is 3.15.0, and 3.15 has no stable release, so adopting it would mean shipping a base image built on a pre-release. Verified by scanning python:3.14.7-alpine3.24, the pin this image is built on: it still carries this advisory. Tracked: the pin moves as soon as 3.15.0 ships stable or a backport lands on 3.14.x.",
+      "action_statement_timestamp": "2026-08-12T13:00:00Z"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-15367"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/python?repository_url=index.docker.io%2Fgustavofreze%2Fpython",
+          "subcomponents": [
+            {
+              "@id": "pkg:generic/python"
+            }
+          ]
+        }
+      ],
+      "status": "affected",
+      "action_statement": "No fix exists on the CPython 3.14 line. The only published fix is 3.15.0a6, an alpha, so adopting it would mean shipping a base image built on a pre-release. Verified by scanning python:3.14.7-alpine3.24, the pin this image is built on: it still carries this advisory. Tracked: the pin moves as soon as a stable release carrying the fix ships or a backport lands on 3.14.x.",
+      "action_statement_timestamp": "2026-08-12T13:00:00Z"
+    }
+  ]
+}

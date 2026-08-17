@@ -1,0 +1,23 @@
+# Gate policy for the Python family, not a vulnerability analysis. The analysis lives in
+# vex/python.openvex.json, is published alongside the images, and any consumer scanning with --vex gets
+# it. This file is read only by the Python scans, through GRYPE_CONFIG, so nothing here reaches another
+# family.
+#
+# Both entries are `affected` in the VEX, which is the truthful status: the image is built on CPython
+# 3.14.7 and carries them. Grype cross-references the upstream advisory, which names a fixed release,
+# so --only-fixed keeps reporting them, correctly. This file is the separate, explicit decision that
+# the gate does not stop on them. Nothing that is genuinely not affected belongs here: that is
+# expressed in the VEX and suppressed by the scanners on their own.
+#
+# No fix exists on the CPython 3.14 line for either. CVE-2026-15308 is fixed only in 3.15.0 and
+# CVE-2025-15367 only in 3.15.0a6, and 3.15 has no stable release, so taking either would mean
+# shipping a base image built on a pre-release.
+#
+# Accepted 2026-08-12. Retires when 3.15.0 ships stable or a backport lands on 3.14.x.
+ignore:
+    - vulnerability: CVE-2026-15308
+      package:
+          name: python
+    - vulnerability: CVE-2025-15367
+      package:
+          name: python

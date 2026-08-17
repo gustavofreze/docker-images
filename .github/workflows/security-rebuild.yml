@@ -1,14 +1,13 @@
 name: Security rebuild
 
-# Weekly refresh of the floating aliases against a freshly pulled upstream base, so a base layer
-# patched since the last release is picked up without waiting for a code change. Only the alias is
-# repushed: a project pinned to a versioned tag keeps the exact bytes it reviewed, and the scan job
-# reports on those pinned tags so a finding turns into a VERSION bump, not a silent swap.
-
 on:
   schedule:
     - cron: '0 6 * * 1'
   workflow_dispatch:
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -21,6 +20,7 @@ jobs:
   discover:
     name: Discover
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
       families: ${{ steps.set-matrix.outputs.families }}
@@ -33,13 +33,15 @@ jobs:
           echo "families=$(./scripts/discover-images.sh --format=families)" >> "$GITHUB_OUTPUT"
 
   review:
-    name: "Review ${{ matrix.family }}"
+    name: "Review ${{ matrix.family }} on ${{ matrix.runner }}"
     needs: discover
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
     strategy:
       fail-fast: true
       matrix:
         family: ${{ fromJson(needs.discover.outputs.families) }}
+        runner: [ ubuntu-latest, ubuntu-24.04-arm ]
     steps:
       - uses: actions/checkout@v7
 
@@ -50,6 +52,7 @@ jobs:
     name: "Rebuild ${{ matrix.family }}:${{ matrix.alias }}"
     needs: [ discover, review ]
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     permissions:
       contents: read
       packages: write
@@ -65,19 +68,19 @@ jobs:
       - uses: docker/setup-buildx-action@v4
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v4.5.2
+        uses: docker/login-action@v4.6.0
         with:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
       - name: Login to GitHub container registry
-        uses: docker/login-action@v4.5.2
+        uses: docker/login-action@v4.6.0
         with:
           registry: ${{ env.GHCR_REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Rebuild from a freshly pulled base and repoint the alias
+      - name: Rebuild every layer with no cache and repoint the alias
         uses: docker/build-push-action@v7
         with:
           push: true
@@ -101,9 +104,11 @@ jobs:
     name: "Scan ${{ matrix.family }}:${{ matrix.tag }}"
     needs: [ discover, rebuild ]
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
       packages: read
+      issues: write
       security-events: write
     strategy:
       fail-fast: false
@@ -113,7 +118,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Login to GitHub container registry
-        uses: docker/login-action@v4.5.2
+        uses: docker/login-action@v4.6.0
         with:
           registry: ${{ env.GHCR_REGISTRY }}
           username: ${{ github.actor }}
@@ -132,26 +137,57 @@ jobs:
           TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload scan results
-        uses: github/codeql-action/upload-sarif@v4.37.3
+        uses: github/codeql-action/upload-sarif@v4.37.5
         if: always()
         with:
           sarif_file: trivy-results.sarif
           category: "trivy-${{ matrix.family }}-${{ matrix.target }}"
 
-  cleanup:
-    name: Cleanup
-    needs: [ discover, rebuild, scan ]
-    runs-on: ubuntu-latest
-    permissions:
-      packages: write
-    strategy:
-      matrix:
-        package: ${{ fromJson(needs.discover.outputs.families) }}
-    steps:
-      - name: Delete untagged versions
-        uses: actions/delete-package-versions@v5
+      - name: Look for findings that actually have a fix
+        id: remediable
+        env:
+          REFERENCE: ${{ env.GHCR_REGISTRY }}/${{ github.repository_owner }}/${{ matrix.family }}:${{ matrix.tag }}
+        run: |
+          set -euo pipefail
+
+          document="vex/${{ matrix.family }}.openvex.json"
+
+          vex=()
+          [[ -f "${document}" ]] && vex=(--vex "/${document}")
+
+          scanner=$(awk '$1 == "trivy:" { found = 1; next } found && $1 == "image:" { print $2; exit }' \
+            docker-compose.yml)
+
+          report=$(mktemp)
+          {
+            echo "Scanned \`${REFERENCE}\` on $(date -u +%Y-%m-%d). The findings below have a fixed"
+            echo "version published upstream, so they are actionable: bump the pin, bump the build"
+            echo "unit VERSION, and let CD publish."
+            echo
+            echo '```'
+          } > "${report}"
+
+          found=0
+          docker run --rm -v "${PWD}/vex:/vex:ro" "${scanner}" image \
+            --scanners vuln --ignore-unfixed --severity HIGH,CRITICAL --quiet \
+            "${vex[@]}" "${REFERENCE}" >> "${report}" 2>&1 || found=1
+
+          echo '```' >> "${report}"
+
+          if [[ "${found}" -eq 0 ]] && ! grep -qE 'CVE-|GHSA-' "${report}"; then
+            echo "nothing remediable"
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "found=true" >> "$GITHUB_OUTPUT"
+          echo "report=${report}" >> "$GITHUB_OUTPUT"
+
+      - name: Open an issue only when something can be fixed
+        if: steps.remediable.outputs.found == 'true'
+        uses: peter-evans/create-issue-from-file@v6
         with:
-          package-name: ${{ matrix.package }}
-          package-type: container
-          min-versions-to-keep: 0
-          delete-only-untagged-versions: true
+          title: "Remediable findings in ${{ matrix.family }}:${{ matrix.tag }}"
+          content-filepath: ${{ steps.remediable.outputs.report }}
+          labels: 'security, automated-issue'
+

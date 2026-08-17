@@ -41,8 +41,11 @@ touches a build unit without bumping it.
 ## Conventions
 
 Rules (`.claude/rules/*.md`) are persistent invariants auto-injected when you read a file matching
-their `paths:` glob. The `docker-images` rule is normative for authoring here. Repository
-documentation (README, commit messages) is written strictly in English.
+their `paths:` glob. The `docker-images` rule is normative for authoring an image, the
+`shell-scripts` rule for every Bash file here and every Dockerfile `RUN` body. Both are enforced by
+the lint stage of the gate, not by convention. The `crafting-base-images` skill sequences the work of
+adding a family, a target, or an upstream version. Repository documentation (README, commit messages)
+is written strictly in English.
 
 - **Prose punctuation.** Do not use `;`, ` — ` (em-dash), ` – ` (en-dash), or ` -- ` as clause
   separators in prose or Markdown. Use two sentences, a comma, a colon, or parentheses instead.

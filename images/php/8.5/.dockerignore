@@ -6,3 +6,5 @@ Dockerfile
 .dockerignore
 scripts/
 VERSION
+.env
+.env.*

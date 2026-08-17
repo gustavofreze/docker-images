@@ -7,6 +7,10 @@ on:
     - cron: '0 0 * * 0'
   workflow_dispatch:
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -18,6 +22,7 @@ jobs:
     name: Version guard
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7
         with:
@@ -54,6 +59,7 @@ jobs:
   discover:
     name: Discover
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       families: ${{ steps.set-matrix.outputs.families }}
     steps:
@@ -63,13 +69,15 @@ jobs:
         run: echo "families=$(./scripts/discover-images.sh --format=families)" >> "$GITHUB_OUTPUT"
 
   review:
-    name: "Review ${{ matrix.family }}"
+    name: "Review ${{ matrix.family }} on ${{ matrix.runner }}"
     needs: discover
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
         family: ${{ fromJson(needs.discover.outputs.families) }}
+        runner: [ ubuntu-latest, ubuntu-24.04-arm ]
     steps:
       - uses: actions/checkout@v7
 
