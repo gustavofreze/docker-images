@@ -13,3 +13,11 @@ Makefile       text eol=lf
 
 # Markdown diff driver, and keep prose out of the GitHub language breakdown.
 *.md          diff=markdown linguist-documentation
+
+# Point the language breakdown at what this repository publishes, which is images. The Makefile and
+# the shell under scripts/ and bin/ are the verification gate and the baked helpers, not the product,
+# and the phpmd wrapper is a shim that would otherwise report this as a PHP project.
+Makefile       linguist-detectable=false
+*.sh           linguist-detectable=false
+**/scripts/*   linguist-detectable=false
+**/bin/*       linguist-detectable=false
