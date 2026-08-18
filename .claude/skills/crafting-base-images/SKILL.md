@@ -54,7 +54,9 @@ Every published tag is `gustavofreze/<family>:<upstream-minor>-<role>-<semver>`,
 identical to the stage name. There is no bare tag. Version tags are immutable, so any input change
 bumps the build unit `VERSION`, and the CI version guard fails a pull request that skips the bump.
 `latest` is forbidden. Each stage also carries a floating alias `<upstream-minor>-<role>` that the
-weekly security rebuild republishes. That rebuild refreshes only the packages this repository installs
+weekly security rebuild republishes, and a consumer may take either form: the versioned tag for
+anything that ships, the alias when the weekly rebuild arriving without a pull request is worth more
+than reproducibility. That rebuild refreshes only the packages this repository installs
 itself through `apk add`, never the inherited base layers, because the `FROM` pin returns the same
 bytes every time. Dependabot opening a pull request for the next upstream patch is what moves the base
 forward.

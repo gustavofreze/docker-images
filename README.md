@@ -41,7 +41,8 @@ The premises the images are held to:
 - **Lean layers.** One `RUN` per concern, build-only dependencies installed under a virtual group and deleted before the
   layer closes, `COPY` never `ADD`.
 - **Immutable versioned tags.** Any change to a Dockerfile or its inputs bumps the build unit's
-  `VERSION`. `latest` is forbidden.
+  `VERSION`. `latest` is forbidden. A floating per-role alias sits beside every versioned tag, and which of the two a
+  project takes is the consumer's call.
 - **A gate before publication.** Publishing an unreviewed image is not possible through the Makefile or the CD workflow.
 
 Each family's own README is the reference for that family: its published tags, what the images bake in, and how to
@@ -178,8 +179,9 @@ gustavofreze/<family>:<upstream-minor>-<role>-<V>
   that touches a build unit without bumping its `VERSION`.
 - `latest` is forbidden.
 - Each stage also carries one floating alias `<upstream-minor>-<role>` (`8.5-runtime`, `3.14-builder`, and the rest).
-  The weekly rebuild repoints these aliases. Pin the full versioned tag in a project, and use the alias only for a local
-  experiment.
+  The weekly rebuild repoints these aliases. Both forms are supported in a project: the versioned tag is reproducible
+  and moves only when you bump it, the alias picks up the weekly security rebuild without a pull request and gives up
+  reproducibility for it. An alias never crosses an upstream minor, so `8.5-runtime` stays on 8.5 after 8.6 ships.
 
 Be precise about what that weekly rebuild can and cannot do. Because every `FROM` pins an exact patch and distro
 release, and the official images publish a new tag rather than rewriting an old one, pulling that pin again always
@@ -250,13 +252,20 @@ family's README, [PHP](images/php/README.md) and [Python](images/python/README.m
 A project consumes a base image and adds only its own dependencies, code, and tuning. The concrete snippet for each
 family lives in that family's README. The rules that hold across every family:
 
-1. Pin the full versioned tag. Never a floating alias, never `latest`.
+1. Choose the tag form deliberately. The full versioned tag is reproducible and is the default for anything that
+   ships. The floating `<upstream-minor>-<role>` alias is supported too, and it trades that reproducibility for the
+   weekly security rebuild arriving without a pull request. `latest` does not exist.
 2. Do not re-declare what the base provides: extensions, the non-root user, hardening, OPcache defaults, the virtual
    environment path, the health check, the interpreter defaults.
 3. Ship a `.dockerignore` next to each Dockerfile, and never copy a secret into a build context.
 4. Build-time credentials enter through a BuildKit secret (`RUN --mount=type=secret,id=<name>`), never through a baked
    `ARG` or `ENV`.
 5. Dependency layers come before code layers, so a code change does not invalidate the dependency cache.
+
+Where each form fits. `runtime` and `builder` end up in an artifact that ships, so the versioned tag is what keeps a
+rollback reproducible, and Dependabot is what moves it. `cli` and `development` run on a developer machine and produce
+nothing that deploys, so the alias costs little there. Either way an alias moves only when the client re-pulls, so
+`--pull=always` on `docker run` (or `pull_policy: always` in compose) is what actually makes it float.
 
 <div id='self-verification'></div>
 

@@ -30,8 +30,8 @@ Verify every item before producing any Dockerfile, dockerignore, or compose file
 4. Layers are lean: one `RUN` per concern with its cache cleaned in the same layer, ephemeral build dependencies deleted
    before the layer closes, `COPY` never `ADD`, and dependency layers before code layers. See § Lean layers.
 5. A `.dockerignore` sits next to every Dockerfile and no secret enters a build context copy. See § Build context.
-6. Every project Dockerfile inherits `FROM` a published base image pinned to its full versioned tag, never a floating
-   alias, never `latest`. See § Consuming.
+6. Every project Dockerfile inherits `FROM` a published base image by its full versioned tag or by its floating
+   `<upstream-minor>-<role>` alias, never `latest`. Anything that ships takes the versioned tag. See § Consuming.
 7. No Dockerfile carries a comment, base image or consumer, beyond the syntax directive and an inline `hadolint ignore`.
    Rationale lives in § Where the reasoning lives and the family README.
 8. No project re-declares what the base already provides. See § What the base provides.
@@ -90,7 +90,8 @@ change bumps the build unit `VERSION`. `latest` is forbidden. Each stage also ca
 because every `FROM` pins an exact patch and distro release, pulling that pin again returns the same bytes, so the
 rebuild refreshes only the packages this repository installs itself through `apk add` and nothing in the inherited base
 layers. What moves the base forward is Dependabot opening a pull request for the next upstream patch, which bumps the
-build unit `VERSION` and republishes. A project always pins the full versioned tag.
+build unit `VERSION` and republishes. A project takes either the versioned tag or the alias, and § Consuming is where
+each one fits.
 
 ## Version layer
 
@@ -332,6 +333,12 @@ A project consumes the base in two thin files:
 
 A project adds only its own dependencies, code, and tuning. Dependency layers come before code layers so the cache
 survives code changes.
+
+Both tag forms are published and a consumer picks one. The versioned tag is reproducible and moves only on a bump,
+which is why `Dockerfile.prod` and anything else that ships names it. The floating `<upstream-minor>-<role>` alias
+picks up the weekly security rebuild with no pull request and gives up reproducibility for it, a fair trade for the
+`cli` tooling and for a local `Dockerfile.dev`. An alias never crosses an upstream minor, and it moves only when the
+client re-pulls, so `--pull=always` is what makes it float.
 
 A consumer Dockerfile carries no comment, like the base images it inherits. The only line that is not a build
 instruction is the `# syntax=docker/dockerfile:1` directive. The reasoning behind each step lives in the base image it

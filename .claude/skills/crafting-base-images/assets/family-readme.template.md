@@ -28,7 +28,8 @@ runs it, root only where a local tooling image needs to write into a bind mount.
 
 Every tag is `<upstream-minor>-<target>-<version>`. There is no bare tag and `latest` is forbidden.
 Version tags are immutable, so any change to a Dockerfile or its inputs publishes a new `<version>`
-instead of rewriting one. Pin the full versioned tag in a project.
+instead of rewriting one. Each target also carries a floating alias, and a project may take either
+form.
 
 | Tag                                | Alias                      | Target   | Purpose    |
 |:-----------------------------------|:---------------------------|:---------|:-----------|
@@ -36,8 +37,10 @@ instead of rewriting one. Pin the full versioned tag in a project.
 
 All four are built from one multi-target
 [Dockerfile](https://github.com/gustavofreze/docker-images/blob/main/images/<family>/<minor>/Dockerfile),
-pinned to `<upstream pin>`. The alias tracks the latest rebuild of its target and is meant for a local
-experiment, never for a project.
+pinned to `<upstream pin>`. The alias tracks the latest rebuild of its target and never crosses an
+upstream minor. Take the versioned tag for anything that ships, because it is reproducible and moves
+only when you bump it. Take the alias when the weekly security rebuild arriving without a pull request
+is worth more than that, which is usually the case for `cli` and for local development.
 
 ## Image variants
 
