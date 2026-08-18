@@ -51,6 +51,13 @@ updates:
     labels:
       - "dependencies"
       - "python"
+    # constraints.txt is a resolved tree, not a manifest, but the pip ecosystem reads it as one and
+    # floats every line in it to the newest release. poetry pins poetry-core exactly (poetry 2.4.1
+    # requires poetry-core==2.4.0), so a floated line there opens a pull request that can never
+    # build. That line moves when a pin in requirements.txt moves, and the header of constraints.txt
+    # says how to regenerate the tree around it.
+    ignore:
+      - dependency-name: "poetry-core"
     groups:
       python:
         patterns:

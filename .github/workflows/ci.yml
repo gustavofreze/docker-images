@@ -35,15 +35,11 @@ jobs:
         run: |
           set -euo pipefail
 
-          mapfile -t units < <(
-            git diff --name-only "${BASE_SHA}" "${HEAD_SHA}" -- 'images/*/*/**' \
-              | awk -F/ 'NF >= 4 {print $1"/"$2"/"$3}' \
-              | sort -u
-          )
+          mapfile -t units < <(./scripts/changed-build-units.sh "${BASE_SHA}" "${HEAD_SHA}")
 
           failed=0
           for unit in "${units[@]:-}"; do
-            [[ -n "${unit}" && -f "${unit}/VERSION" ]] || continue
+            [[ -n "${unit}" ]] || continue
 
             if [[ -z "$(git diff --name-only "${BASE_SHA}" "${HEAD_SHA}" -- "${unit}/VERSION")" ]]; then
               echo "::error file=${unit}/VERSION::${unit} changed but ${unit}/VERSION was not bumped. Version tags are immutable."

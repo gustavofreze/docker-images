@@ -228,6 +228,13 @@ touches a build unit without bumping its `VERSION`. The publishing job itself do
 straight to `main` republishes whatever tag the build units name, overwriting a tag that is already out there. Route
 changes through a pull request and the guard catches the missing bump before it reaches the registry.
 
+Dependabot writes no `VERSION`, so an update it opens against a build unit would fail that guard every time. The
+`Dependabot version bump` workflow closes the gap instead of weakening the guard: it moves the number and every tag the
+family README names in one commit on the Dependabot branch, and the guard then reads a pull request that already carries
+its bump. It runs on `pull_request_target`, the one event that still hands a Dependabot run a writable token, and pushes
+with a `VERSION_BUMP_TOKEN` repository secret holding `contents: write`, because a push made with the default token
+fires no event and would leave the gate reporting against the pre-bump commit.
+
 A family that carries a finding it cannot fix locally publishes an OpenVEX analysis as a cosign attestation next to
 every image, versioned at `vex/<family>.openvex.json`. It states per CVE whether the image is genuinely affected, and
 `affected` statements are reported rather than silenced: the risk is disclosed, not hidden. Whether the local gate stops
