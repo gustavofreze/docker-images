@@ -47,7 +47,7 @@ packaging==26.3
 pbs-installer==2026.8.14
 pkginfo==1.12.1.2
 platformdirs==4.11.3
-poetry-core==2.4.1
+poetry-core==2.4.0
 pycparser==3.0
 pyproject_hooks==1.2.0
 python-discovery==1.5.2
