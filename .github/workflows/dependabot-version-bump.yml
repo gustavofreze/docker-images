@@ -1,0 +1,85 @@
+name: Dependabot version bump
+
+on:
+  pull_request_target:
+    branches: [ main ]
+    paths:
+      - 'images/*/*/**'
+
+concurrency:
+  group: dependabot-version-bump-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  bump:
+    name: Bump every touched build unit
+    # Dependabot writes no VERSION, so every update it opens against a build unit trips the version
+    # guard. This closes that gap without weakening the guard, which still runs unchanged for
+    # everyone. pull_request_target is what makes it possible: a workflow Dependabot triggers through
+    # pull_request gets a read-only token and no secrets, so it could never push the bump back.
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require the token that re-runs the gate after the bump
+        env:
+          VERSION_BUMP_TOKEN: ${{ secrets.VERSION_BUMP_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          [[ -n "${VERSION_BUMP_TOKEN}" ]] || {
+            echo "::error::VERSION_BUMP_TOKEN is unset. It needs contents: write on this repository."
+            exit 1
+          }
+
+      # The base branch, for the scripts this job runs. Everything it executes comes from what is
+      # already merged, never from the pull request, so a branch can never hand a write token
+      # something of its own to run.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: base
+
+      # The pull request branch, for the files this job edits. Dependabot pushes into this
+      # repository, so this is not a fork checkout, and nothing in it is executed.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          path: head
+          fetch-depth: 0
+          # A push made with GITHUB_TOKEN fires no event, so CI would keep reporting against the
+          # pre-bump commit and the guard would stay red. A token of its own is what re-runs the
+          # gate against what actually merges.
+          token: ${{ secrets.VERSION_BUMP_TOKEN }}
+
+      - name: Bump the VERSION of every touched build unit
+        working-directory: head
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+
+          mapfile -t units < <(../base/scripts/changed-build-units.sh "${BASE_SHA}" HEAD)
+
+          bumped=0
+          for unit in "${units[@]:-}"; do
+            [[ -n "${unit}" ]] || continue
+            [[ -z "$(git diff --name-only "${BASE_SHA}" HEAD -- "${unit}/VERSION")" ]] || continue
+
+            ../base/scripts/bump-build-unit.sh "${unit}" > /dev/null
+            bumped=1
+          done
+
+          [[ "${bumped}" -eq 1 ]] || {
+            echo "every touched build unit already carries its bump"
+            exit 0
+          }
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit --all --message 'build: Bump the VERSION of every build unit this update touches.'
+          git push origin "HEAD:${HEAD_REF}"
