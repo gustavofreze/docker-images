@@ -1,5 +1,6 @@
 # What the builder and the cli install. Pinned here rather than in a Dockerfile ARG so an updater can
-# see them: the pip ecosystem reads this file and follows the -c into constraints.txt, which holds the
-# resolved tree behind these three lines.
-pip==26.2
+# see them: the pip ecosystem reads this file, and reads constraints.txt beside it as a manifest of
+# its own. The Dockerfile applies that file with --constraint, and it holds the resolved tree behind
+# these two lines. Nothing in that tree moves on its own, so regenerate it whenever a pin here moves.
+pip==26.2.1
 poetry==2.4.1

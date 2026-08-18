@@ -31,10 +31,10 @@ full versioned tag in a project.
 
 | Tag                      | Alias              | Target        | Purpose                                                       |
 |:-------------------------|:-------------------|:--------------|:--------------------------------------------------------------|
-| `3.14-runtime-1.0.0`     | `3.14-runtime`     | `runtime`     | Production interpreter. No compiler, no installer, no Poetry. |
-| `3.14-development-1.0.0` | `3.14-development` | `development` | Development runtime: runtime plus Poetry, debugpy, bash, git. |
-| `3.14-builder-1.0.0`     | `3.14-builder`     | `builder`     | Poetry and the C toolchain for the builder stage of an image. |
-| `3.14-cli-1.0.0`         | `3.14-cli`         | `cli`         | Makefile tooling: Poetry, git, bash, curl.                    |
+| `3.14-runtime-1.0.1`     | `3.14-runtime`     | `runtime`     | Production interpreter. No compiler, no installer, no Poetry. |
+| `3.14-development-1.0.1` | `3.14-development` | `development` | Development runtime: runtime plus Poetry, debugpy, bash, git. |
+| `3.14-builder-1.0.1`     | `3.14-builder`     | `builder`     | Poetry and the C toolchain for the builder stage of an image. |
+| `3.14-cli-1.0.1`         | `3.14-cli`         | `cli`         | Makefile tooling: Poetry, git, bash, curl.                    |
 
 All four are built from one multi-target
 [Dockerfile](https://github.com/gustavofreze/docker-images/blob/main/images/python/3.14/Dockerfile), pinned to
@@ -85,18 +85,18 @@ A project consumes the base in two thin files and adds only its own dependencies
 
 ```dockerfile
 # syntax=docker/dockerfile:1
-FROM gustavofreze/python:3.14-development-1.0.0
+FROM gustavofreze/python:3.14-development-1.0.1
 COPY ./ /app
 ```
 
 ```dockerfile
 # syntax=docker/dockerfile:1
-FROM gustavofreze/python:3.14-builder-1.0.0 AS builder
+FROM gustavofreze/python:3.14-builder-1.0.1 AS builder
 COPY pyproject.toml poetry.lock ./
 RUN poetry install --no-root --only main
 COPY ./ ./
 
-FROM gustavofreze/python:3.14-runtime-1.0.0
+FROM gustavofreze/python:3.14-runtime-1.0.1
 COPY --from=builder --chown=app:app /app /app
 CMD ["python3", "-m", "your_application"]
 ```
@@ -109,8 +109,8 @@ installed without activating anything.
 The `cli` image is invoked directly and never appears in a Dockerfile:
 
 ```shell
-docker run --rm -v "$(pwd)":/app gustavofreze/python:3.14-cli-1.0.0 poetry install
-docker run --rm -v "$(pwd)":/app gustavofreze/python:3.14-cli-1.0.0 python3 your-script.py
+docker run --rm -v "$(pwd)":/app gustavofreze/python:3.14-cli-1.0.1 poetry install
+docker run --rm -v "$(pwd)":/app gustavofreze/python:3.14-cli-1.0.1 python3 your-script.py
 ```
 
 The rules that hold across every family live in the
@@ -129,7 +129,7 @@ Every tag also carries an [OpenVEX](https://openvex.dev) analysis as a cosign at
 image is genuinely affected. A scanner that reads it applies the analysis on its own:
 
 ```shell
-trivy image --vex oci gustavofreze/python:3.14-runtime-1.0.0
+trivy image --vex oci gustavofreze/python:3.14-runtime-1.0.1
 ```
 
 `affected` statements are reported, not silenced, which is the point: the risk is disclosed rather than hidden. The
