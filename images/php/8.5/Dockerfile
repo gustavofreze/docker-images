@@ -42,11 +42,11 @@ LABEL org.opencontainers.image.title="gustavofreze/php-cli" \
       org.opencontainers.image.description="PHP 8.5 CLI tooling image: Composer, Xdebug coverage, CodeSniffer, Mess Detector, docker CLI"
 
 ARG PHPMD_VERSION=2.15.0
-ARG PHPCS_VERSION=4.0.1
+ARG PHPCS_VERSION=4.0.4
 ARG XDEBUG_VERSION=3.5.3
 ARG PHPMD_SHA256=6a28ef55de0c753b070d1d1580bb08a0d146016f89f0eddcef60ac4fc1083544
-ARG PHPCS_SHA256=a211817baf28918b2cff8e80af5d53d7e7060f9761384c0d9df0f003afb51a40
-ARG PHPCBF_SHA256=2b6c98c48eafc2e211cec397a0e9693010b09791760b93eef2606b38df5351af
+ARG PHPCS_SHA256=4b010cd21d8bc8a17e2504792e3c77ef8259126f24caf7eafe7eddef1fa871e9
+ARG PHPCBF_SHA256=0b3b8c5571543e94452f6edec0d7e924b287a64c13b73d8dcf3d25f0ee004948
 
 # hadolint ignore=DL3002
 USER 0
