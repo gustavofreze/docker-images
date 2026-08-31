@@ -1,0 +1,41 @@
+# Layer-efficiency thresholds for the targets whose waste is a shadowed base layer.
+#
+# Not a relaxation of .dive-ci, which stays at 0.95, 20MB and 0.10 and still governs php cli, python
+# builder and python cli. This file exists because dive counts a file replaced in a later layer as
+# waste, and these targets replace files they inherited rather than files they added:
+#
+#   - openssl. An upstream base ships whatever version was current when it was tagged, and it ages in
+#     place. Upgrading it inside the image is the only remediation while no newer base tag exists, and
+#     the upgrade leaves the original 5 MB of libcrypto3 behind in the base layer. Every target built
+#     on a base this repository upgrades carries that shadow, directly or through its parent stage.
+#   - pip, in the Python runtime only. It uninstalls the installer on purpose, which shadows the
+#     interpreter's own tree. That waste predates this file, and the 2026-08-11 calibration recorded
+#     in .dive-ci covered the runtime with pip already gone and met the strict floors then, so the
+#     openssl shadow is what carried it past them rather than pip.
+#
+# Neither is reachable by pruning a RUN, because neither lives in a RUN this repository authors. The
+# targets listed in the Makefile are the ones where the shadow is large next to what the target itself
+# adds. The three not listed carry the same shadow but add enough of their own bytes to meet the
+# strict floors anyway, so they stay on .dive-ci. One of them failing later is a signal to look for a
+# real regression first, not to move it here.
+#
+# Measured 2026-08-29 at build unit 1.0.3, with the floors set just past the worst of the five:
+#
+#   php runtime        93.1% efficient, 14.1% user waste, 15.1 MB wasted
+#   php development    93.7% efficient, 12.5% user waste, 15.3 MB wasted
+#   php builder        93.6% efficient, 12.8% user waste, 15.1 MB wasted
+#   python runtime     88.9% efficient, 28.2% user waste, 12.9 MB wasted
+#   python development 93.4% efficient, 14.1% user waste, 24.4 MB wasted
+#
+# An unpruned build dependency or a forgotten cache in any of them still fails here.
+#
+# Retires when the shadow does. If an upstream base ships a current openssl, drop the upgrade from
+# that family's Dockerfile and move its targets back to .dive-ci.
+rules:
+  # Unique bytes over total bytes.
+  lowestEfficiency: 0.88
+
+  highestWastedBytes: 26MB
+
+  # Wasted space as a fraction of the bytes the build itself added.
+  highestUserWastedPercent: 0.30

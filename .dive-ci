@@ -1,9 +1,13 @@
 # Layer-efficiency thresholds for the review gate.
 #
 # Calibrated 2026-08-11 against the images here, which measured 96.6% to 99.4% efficient with 0.6 MB
-# to 12 MB wasted. The floors sit just below the least efficient target, so a gross regression (an
-# unpruned build dependency, a forgotten cache) fails while the known waste passes. A change that
-# widens waste past these bounds is a signal to prune the RUN, not to loosen a threshold.
+# to 12 MB wasted. The floors sit just below the least efficient target measured then, so a gross
+# regression (an unpruned build dependency, a forgotten cache) fails while the known waste passes. A
+# change that widens waste past these bounds is a signal to prune the RUN, not to loosen a threshold.
+#
+# Five targets are held to .dive-ci-shadowed instead, because their waste is a base layer this
+# repository did not author and cannot prune. The Makefile names which ones, and that file carries
+# the reason. Nothing else is exempt, and this file stays at the numbers above.
 rules:
   # Unique bytes over total bytes.
   lowestEfficiency: 0.95

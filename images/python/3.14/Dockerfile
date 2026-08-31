@@ -64,7 +64,8 @@ ENV PATH="/app/.venv/bin:${PATH}" \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONFAULTHANDLER=1
 
-RUN apk add --no-cache ca-certificates \
+RUN apk add --no-cache --upgrade libcrypto3 libssl3 \
+    && apk add --no-cache ca-certificates \
     && python3 -m pip uninstall --yes pip \
     && rm -rf /root/.cache \
     && addgroup -g 1000 app \

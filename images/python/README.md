@@ -31,10 +31,10 @@ target also carries a floating alias, and a project may take either form.
 
 | Tag                      | Alias              | Target        | Purpose                                                       |
 |:-------------------------|:-------------------|:--------------|:--------------------------------------------------------------|
-| `3.14-runtime-1.0.1`     | `3.14-runtime`     | `runtime`     | Production interpreter. No compiler, no installer, no Poetry. |
-| `3.14-development-1.0.1` | `3.14-development` | `development` | Development runtime: runtime plus Poetry, debugpy, bash, git. |
-| `3.14-builder-1.0.1`     | `3.14-builder`     | `builder`     | Poetry and the C toolchain for the builder stage of an image. |
-| `3.14-cli-1.0.1`         | `3.14-cli`         | `cli`         | Makefile tooling: Poetry, git, bash, curl.                    |
+| `3.14-runtime-1.0.3`     | `3.14-runtime`     | `runtime`     | Production interpreter. No compiler, no installer, no Poetry. |
+| `3.14-development-1.0.3` | `3.14-development` | `development` | Development runtime: runtime plus Poetry, debugpy, bash, git. |
+| `3.14-builder-1.0.3`     | `3.14-builder`     | `builder`     | Poetry and the C toolchain for the builder stage of an image. |
+| `3.14-cli-1.0.3`         | `3.14-cli`         | `cli`         | Makefile tooling: Poetry, git, bash, curl.                    |
 
 All four are built from one multi-target
 [Dockerfile](https://github.com/gustavofreze/docker-images/blob/main/images/python/3.14/Dockerfile), pinned to
@@ -60,6 +60,9 @@ for the process it actually runs. No target exposes a port.
 Every image provides, and no consuming Dockerfile re-declares:
 
 - A non-root runtime: the `app` user (uid 1000) with `WORKDIR /app` owned by it.
+- A current openssl. The upstream base ships whatever `libcrypto3` and `libssl3` were current when it was tagged,
+  and those age in place between base releases, so every image here upgrades them to what the Alpine index serves
+  at build time. A consuming Dockerfile does not need to repeat it.
 - The project-local virtual environment on `PATH` (`/app/.venv/bin`) with `VIRTUAL_ENV` set, so a stage that ran
   `poetry install` reaches its dependencies with no activation step and the runtime resolves the very same path.
 - Container-correct interpreter defaults: `PYTHONUNBUFFERED` so a crash loses no log line, `PYTHONDONTWRITEBYTECODE` so
@@ -69,7 +72,7 @@ Every image provides, and no consuming Dockerfile re-declares:
   carries (CacheControl, requests, urllib3, msgpack, a vendored setuptools) and is unreachable from an application
   running a virtual environment the builder already populated. The `ensurepip` wheel stays in place, so
   `python3 -m ensurepip` restores the installer for the rare consumer that needs it. `builder`, `development`, and `cli`
-  all ship pip 26.2, cacheless and quiet (`PIP_NO_CACHE_DIR`, `PIP_DISABLE_PIP_VERSION_CHECK`).
+  all ship pip 26.2.1, cacheless and quiet (`PIP_NO_CACHE_DIR`, `PIP_DISABLE_PIP_VERSION_CHECK`).
 - In `builder` and `cli`: Poetry 2.4.1 configured to build the virtual environment inside the project
   (`POETRY_VIRTUALENVS_IN_PROJECT`), plus git and the C toolchain (`build-base`, `libffi-dev`, `openssl-dev`,
   `linux-headers`) for packages with no musl wheel.
@@ -87,18 +90,18 @@ A project consumes the base in two thin files and adds only its own dependencies
 
 ```dockerfile
 # syntax=docker/dockerfile:1
-FROM gustavofreze/python:3.14-development-1.0.1
+FROM gustavofreze/python:3.14-development-1.0.3
 COPY ./ /app
 ```
 
 ```dockerfile
 # syntax=docker/dockerfile:1
-FROM gustavofreze/python:3.14-builder-1.0.1 AS builder
+FROM gustavofreze/python:3.14-builder-1.0.3 AS builder
 COPY pyproject.toml poetry.lock ./
 RUN poetry install --no-root --only main
 COPY ./ ./
 
-FROM gustavofreze/python:3.14-runtime-1.0.1
+FROM gustavofreze/python:3.14-runtime-1.0.3
 COPY --from=builder --chown=app:app /app /app
 CMD ["python3", "-m", "your_application"]
 ```
@@ -111,8 +114,8 @@ installed without activating anything.
 The `cli` image is invoked directly and never appears in a Dockerfile:
 
 ```shell
-docker run --rm -v "$(pwd)":/app gustavofreze/python:3.14-cli-1.0.1 poetry install
-docker run --rm -v "$(pwd)":/app gustavofreze/python:3.14-cli-1.0.1 python3 your-script.py
+docker run --rm -v "$(pwd)":/app gustavofreze/python:3.14-cli-1.0.3 poetry install
+docker run --rm -v "$(pwd)":/app gustavofreze/python:3.14-cli-1.0.3 python3 your-script.py
 ```
 
 The rules that hold across every family live in the
@@ -131,7 +134,7 @@ Every tag also carries an [OpenVEX](https://openvex.dev) analysis as a cosign at
 image is genuinely affected. A scanner that reads it applies the analysis on its own:
 
 ```shell
-trivy image --vex oci gustavofreze/python:3.14-runtime-1.0.1
+trivy image --vex oci gustavofreze/python:3.14-runtime-1.0.3
 ```
 
 `affected` statements are reported, not silenced, which is the point: the risk is disclosed rather than hidden. The

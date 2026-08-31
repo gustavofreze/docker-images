@@ -13,7 +13,8 @@
 # CVE-2025-15367 only in 3.15.0a6, and 3.15 has no stable release, so taking either would mean
 # shipping a base image built on a pre-release.
 #
-# Accepted 2026-08-12. Retires when 3.15.0 ships stable or a backport lands on 3.14.x.
+# Grype has no expiry field, unlike the Trivy policy beside it, so this block will not lapse on its
+# own. Accepted 2026-08-12. Delete it when 3.15.0 ships stable or a backport lands on 3.14.x.
 ignore:
     - vulnerability: CVE-2026-15308
       package:
