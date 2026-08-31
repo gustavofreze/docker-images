@@ -15,7 +15,8 @@ LABEL org.opencontainers.image.url="https://github.com/gustavofreze/docker-image
       org.opencontainers.image.description="PHP 8.5 Composer build toolchain for application builder stages" \
       org.opencontainers.image.documentation="https://github.com/gustavofreze/docker-images/blob/main/images/php/README.md"
 
-RUN apk add --no-cache ca-certificates git unzip libzip \
+RUN apk add --no-cache --upgrade libcrypto3 libssl3 openssl \
+    && apk add --no-cache ca-certificates git unzip libzip \
     && apk add --no-cache --virtual .build-deps ${PHPIZE_DEPS} linux-headers libzip-dev \
     && docker-php-ext-install -j"$(nproc)" bcmath pdo_mysql zip \
     && apk del .build-deps \
@@ -87,7 +88,8 @@ LABEL org.opencontainers.image.url="https://github.com/gustavofreze/docker-image
       org.opencontainers.image.description="Hardened non-root PHP 8.5 FPM production runtime" \
       org.opencontainers.image.documentation="https://github.com/gustavofreze/docker-images/blob/main/images/php/README.md"
 
-RUN apk add --no-cache ca-certificates libzip \
+RUN apk add --no-cache --upgrade libcrypto3 libssl3 openssl \
+    && apk add --no-cache ca-certificates libzip \
     && apk add --no-cache --virtual .build-deps ${PHPIZE_DEPS} linux-headers libzip-dev \
     && docker-php-ext-install -j"$(nproc)" bcmath pdo_mysql zip \
     && apk del .build-deps \

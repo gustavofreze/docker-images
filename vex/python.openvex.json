@@ -3,8 +3,8 @@
   "@id": "https://github.com/gustavofreze/docker-images/vex/python-3.14",
   "author": "Gustavo Freze",
   "role": "Image maintainer",
-  "timestamp": "2026-08-12T13:00:00Z",
-  "version": 3,
+  "timestamp": "2026-08-29T15:36:00Z",
+  "version": 4,
   "statements": [
     {
       "vulnerability": {
@@ -58,7 +58,7 @@
       ],
       "status": "not_affected",
       "justification": "vulnerable_code_cannot_be_controlled_by_adversary",
-      "impact_statement": "msgpack is vendored inside pip, where it backs the CacheControl HTTP cache. Every image here sets PIP_NO_CACHE_DIR=1, so that cache is off and the decoder is never fed remote bytes."
+      "impact_statement": "msgpack is vendored inside pip, where it decodes the entries CacheControl serializes into pip's HTTP cache directory. The runtime target uninstalls pip, so nothing there imports the vendored copy. The three targets that ship pip (builder, cli, and development, which restores it with ensurepip) all carry PIP_NO_CACHE_DIR=1, so that cache is neither written nor read and the decoder is never reached by a pip run as this image ships it."
     },
     {
       "vulnerability": {

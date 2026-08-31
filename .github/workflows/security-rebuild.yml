@@ -131,26 +131,46 @@ jobs:
           set -euo pipefail
 
           document="vex/${{ matrix.family }}.openvex.json"
+          policy=".trivy/${{ matrix.family }}.yaml"
 
+          mounts=(-v "${PWD}/vex:/vex:ro")
+
+          # A family with no document scans bare, which is the safe direction. Written as a full if
+          # rather than an AND-list so the empty case is visible at a glance, and so appending a line
+          # after it cannot turn a false test into the step's exit status under set -e.
           vex=()
-          [[ -f "${document}" ]] && vex=(--vex "/${document}")
+          if [[ -f "${document}" ]]; then
+            vex=(--vex "/${document}")
+          fi
 
-          scanner=$(awk '$1 == "trivy:" { found = 1; next } found && $1 == "image:" { print $2; exit }' \
+          # The same acceptance the gate reads, so a finding this repository has already decided it
+          # cannot fix is not reported back every week as actionable. Trivy honors each entry's
+          # expired_at, so the issue reopens on its own the day the acceptance lapses.
+          accepted=()
+          if [[ -f "${policy}" ]]; then
+            mounts+=(-v "${PWD}/${policy}:/policy.yaml:ro")
+            accepted=(--ignorefile /policy.yaml)
+          fi
+
+          # Bounded the way the Makefile bounds it. Without the stop at the next service key a family
+          # whose block is missing an image: line resolves to a different tool's image.
+          scanner=$(awk -v service="trivy:" \
+            '$1 == service { found = 1; next } found && /^    [^ ]/ { exit } found && $1 == "image:" { print $2; exit }' \
             docker-compose.yml)
 
           report=$(mktemp)
           {
             echo "Scanned \`${REFERENCE}\` on $(date -u +%Y-%m-%d). The findings below have a fixed"
-            echo "version published upstream, so they are actionable: bump the pin, bump the build"
-            echo "unit VERSION, and let CD publish."
+            echo "version published upstream and carry no accepted-risk entry for this family, so"
+            echo "they are actionable: bump the pin, bump the build unit VERSION, and let CD publish."
             echo
             echo '```'
           } > "${report}"
 
           found=0
-          docker run --rm -v "${PWD}/vex:/vex:ro" "${scanner}" image \
+          docker run --rm "${mounts[@]}" "${scanner}" image \
             --scanners vuln --ignore-unfixed --severity HIGH,CRITICAL --quiet \
-            "${vex[@]}" "${REFERENCE}" >> "${report}" 2>&1 || found=1
+            "${vex[@]}" "${accepted[@]}" "${REFERENCE}" >> "${report}" 2>&1 || found=1
 
           echo '```' >> "${report}"
 

@@ -132,6 +132,10 @@ For a new family or target:
 5. Wire the family into the Makefile: its coordinate variables at the top, then `lint-<family>`,
    `build-<family>`, `scan-<family>`, `audit-<family>`, `efficiency-<family>`, `smoke-<family>`,
    `publish-<family>`, and a `review-<family>` chaining them in gate order. Add each to its aggregate.
+   Two of those steps route per target rather than per family. The audit picks the Dockle runner whose
+   CIS exemptions the target earns, and the efficiency step picks `DIVE_RUN` or `DIVE_RUN_SHADOWED`,
+   the second one only for a target whose waste is a base layer it replaced rather than a `RUN` it can
+   prune. Measure before routing, and record the measurement in `.dive-ci-shadowed`.
 6. Nothing to wire in the workflows. Their matrix comes from `scripts/discover-images.sh`, which reads
    the Dockerfile's named build stages and keeps the four of the closed vocabulary. Any other stage,
    such as one pinning an upstream image a target copies a binary out of, publishes no tag. Name that
@@ -157,7 +161,8 @@ Run `make review-<family>` and let it pass. It is green only when, for every tar
 - [ ] Every target a project runs has a non-root last user, with hardening active.
 - [ ] The image conforms to the CIS Docker Benchmark, with any exemption named and justified.
 - [ ] No fixable HIGH or CRITICAL vulnerability remains.
-- [ ] Layer efficiency stays within the `.dive-ci` thresholds.
+- [ ] Layer efficiency stays within the `.dive-ci` thresholds, or within `.dive-ci-shadowed` for a
+      target the Makefile routes there, with its measurement recorded in that file.
 - [ ] The smoke assertions all pass.
 
 Any input change also bumps the family `VERSION`, since version tags are immutable.

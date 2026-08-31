@@ -196,7 +196,9 @@ layer, so nothing it fetched survives into the image:
 - Dependency layers come before code layers so a code change does not invalidate the dependency cache.
 
 The efficiency stage of the review gate holds these to the thresholds in `.dive-ci`. A widening layer is a signal to
-prune the `RUN`, not to relax the threshold.
+prune the `RUN`, not to relax the threshold. The one exception is waste no `RUN` here can reach, where a base layer
+this repository did not author is shadowed by a file replaced on top of it. Those targets are named in the Makefile
+and held to `.dive-ci-shadowed`, which carries the measurement and the condition that retires it.
 
 ## Authoring
 
@@ -272,8 +274,9 @@ simplifying an instruction: each item below is load bearing, and the build or th
   tooling-image concern, so it stays in the one image a Makefile invokes and never reaches a `builder`,
   a `runtime`, or any Python target, each of which asserts its absence in `scripts/smoke`. The PHP
   `cli` smoke asserts the opposite, so removing it breaks that suite loudly instead of silently. The
-  cost is roughly 30MB. It is copied from the pinned official image
-  (`COPY --from=docker:<version>-cli-alpine<release>`) rather than installed with `apk add docker-cli`,
+  cost is roughly 30MB. It is copied from the pinned official image through a named stage
+  (`FROM docker:<version>-cli-alpine<release> AS docker-cli`, then `COPY --from=docker-cli`) rather
+  than installed with `apk add docker-cli`,
   and that is not a style choice: Alpine 3.24 packages a build linked against an older Go toolchain,
   which Grype reports as a HIGH in `crypto/x509` (GO-2026-5037). The official image tracks Go closely
   enough to be clean. Read the toolchain out of a candidate before pinning it
@@ -281,7 +284,26 @@ simplifying an instruction: each item below is load bearing, and the build or th
   version, is what the scanners judge. It enters through a named stage rather than a bare
   `COPY --from=<image>`, because Dependabot's Docker parser matches `FROM` lines and nothing else, so a
   bare reference would be a pin carrying Go advisories that no updater watches. A caller still has to
-  mount the host socket itself, which is root-equivalent on the host.
+  mount the host socket itself, which is root-equivalent on the host. The same tag string is repeated
+  in the `action_statement` of every statement in `vex/php.openvex.json`, which Dependabot does not
+  read, so a bump to this pin moves the Dockerfile and that document in one change.
+- **The openssl packages are named in `apk add` with `--upgrade`, and nothing else is.** An upstream
+  base ships whatever openssl was current when it was tagged, and that ages in place: both
+  `python:3.14.7-alpine3.24` and `php:8.5.9-fpm-alpine3.24` carried 3.5.7-r0 while the v3.24 index
+  served 3.5.8-r0, with no newer base tag to move to. A finding with a published fix is not
+  acceptable risk under § Vulnerability acceptance, so the fix has to enter the image. A bare
+  `apk add libcrypto3` is a no-op on a package that is already installed and already satisfies the
+  constraint, so only `--upgrade` moves it. The line sits in each stage built directly on an upstream
+  base, which is the php `builder` and `runtime` and the python `runtime`, and every other target
+  inherits the result through its parent stage. The python `builder` is the one that needs no line,
+  because `openssl-dev` already pulls the current package in. Each family names the packages its own
+  base actually ships, so php names `libcrypto3 libssl3 openssl` and python names only the two
+  libraries: adding `openssl` to python would install a binary that base does not carry. The set is
+  kept to openssl rather than a blanket `apk upgrade`, which would also drag sqlite-libs and
+  apk-tools along, because every upgraded package shadows the base layer's copy and the shadowed
+  bytes count against the dive thresholds, per § Lean layers. Naming them in `apk add` is also what
+  brings them inside the weekly security rebuild, which refreshes exactly the unpinned packages this
+  repository installs itself. Widen the set only when a scanner reports a package it does not cover.
 - **The gate runs two vulnerability scanners.** Trivy reads the distro security database, Grype
   cross-references upstream advisories and Go module data. Neither is a superset: Grype caught a HIGH
   in the Go stdlib of a vendored binary that Trivy reported clean on the same image. An accepted

@@ -157,6 +157,20 @@ DIVE_RUN := docker run --rm -e CI=true \
     -v $(CURDIR)/.dive-ci:/.dive-ci:ro \
     $(DIVE_IMAGE) --ci-config /.dive-ci
 
+# The targets whose waste is a base layer this repository did not author and cannot prune. All eight
+# images end up on the upgraded openssl, the php stages and the python runtime through an explicit
+# apk add --upgrade and the python builder through openssl-dev pulling it in, and the python runtime
+# also uninstalls the pip it inherits. Each of those replaces a file that arrived in the upstream
+# base, and dive counts a replaced file as waste. These five are the ones where that shadow is large
+# next to what the target itself adds, measured rather than assumed. php cli, python builder and
+# python cli shadow the same package and still meet the strict floors, so they stay on .dive-ci.
+# Which thresholds move and why is written in .dive-ci-shadowed, beside the numbers, the same way the
+# CIS exemptions above sit beside the runner they apply to.
+DIVE_RUN_SHADOWED := docker run --rm -e CI=true \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    -v $(CURDIR)/.dive-ci-shadowed:/.dive-ci:ro \
+    $(DIVE_IMAGE) --ci-config /.dive-ci
+
 # =============================================================================
 # Targets
 # Tag format: ## @section Description  (targets without @ are hidden from help)
@@ -266,15 +280,15 @@ efficiency: efficiency-php efficiency-python ## @verify Check the layer efficien
 
 .PHONY: efficiency-php
 efficiency-php: ## @verify Check the layer efficiency of the PHP images
-	@$(DIVE_RUN) $(PHP_RUNTIME_TAG)
-	@$(DIVE_RUN) $(PHP_DEVELOPMENT_TAG)
-	@$(DIVE_RUN) $(PHP_BUILDER_TAG)
+	@$(DIVE_RUN_SHADOWED) $(PHP_RUNTIME_TAG)
+	@$(DIVE_RUN_SHADOWED) $(PHP_DEVELOPMENT_TAG)
+	@$(DIVE_RUN_SHADOWED) $(PHP_BUILDER_TAG)
 	@$(DIVE_RUN) $(PHP_CLI_TAG)
 
 .PHONY: efficiency-python
 efficiency-python: ## @verify Check the layer efficiency of the Python images
-	@$(DIVE_RUN) $(PYTHON_RUNTIME_TAG)
-	@$(DIVE_RUN) $(PYTHON_DEVELOPMENT_TAG)
+	@$(DIVE_RUN_SHADOWED) $(PYTHON_RUNTIME_TAG)
+	@$(DIVE_RUN_SHADOWED) $(PYTHON_DEVELOPMENT_TAG)
 	@$(DIVE_RUN) $(PYTHON_BUILDER_TAG)
 	@$(DIVE_RUN) $(PYTHON_CLI_TAG)
 

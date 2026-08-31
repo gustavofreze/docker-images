@@ -55,8 +55,9 @@ and the usage contract.
 
 Every family lives under `images/`, one directory per family. A family holds one self-contained build unit per upstream
 version under an `<upstream-minor>/` subdirectory, plus a family `README.md` one level up as the umbrella. A root
-`scripts/` holds the shared host-side smoke library every family sources and the discovery script the workflows build
-their matrix from.
+`scripts/` holds the host-side tooling the Makefile and the workflows run: the smoke library every family sources, the
+automated version bump, the discovery script the workflows build their matrix from, the version guard's changed-unit
+detection, and the documentation check.
 
 ```
 docker-images/
@@ -69,10 +70,14 @@ docker-images/
 │   ├── php.yaml
 │   └── python.yaml
 ├── .trivy/                         # the same acceptance for Trivy, which names them differently
-│   └── php.yaml
+│   ├── php.yaml
+│   └── python.yaml
 ├── scripts/
 │   ├── smoke-lib.sh                # shared host-side smoke helpers every family sources
-│   └── discover-images.sh          # build matrix: one entry per target, read from the Dockerfiles
+│   ├── bump-build-unit.sh          # moves a build unit VERSION and every tag its README names
+│   ├── discover-images.sh          # build matrix: one entry per target, read from the Dockerfiles
+│   ├── changed-build-units.sh      # the build units a commit range touches, read by the version guard
+│   └── check-documentation.sh      # asserts every family README still agrees with its build units
 └── images/
     ├── php/
     │   ├── README.md               # family umbrella: role, versions, targets, consumption
@@ -189,8 +194,10 @@ returns the same bytes. The rebuild therefore refreshes only the handful of pack
 through `apk add`, which carry no version pin, and nothing in the inherited base layers or in the PHP and CPython
 binaries. What actually moves the base forward is Dependabot opening a pull request for the next upstream patch, which
 then bumps the build unit `VERSION` and republishes. The rebuild's second job is detection: it scans the published
-versioned tags every week and opens an issue only when a finding has a fix available, so a report means there is
-something to do.
+versioned tags every week and opens an issue when the advisory names a fixed release and no accepted-risk entry
+covers it for that family. That is narrower than remediable. A fix published upstream still needs an artifact this
+repository can pin, and where none exists yet the answer is an acceptance entry with a VEX statement rather than a
+bump.
 
 <div id='versioning'></div>
 
@@ -276,13 +283,15 @@ nothing that deploys, so the alias costs little there. Either way an alias moves
 1. **Lint** every Dockerfile with hadolint, with the shell inside each `RUN` checked by ShellCheck, and every standalone
    shell script with ShellCheck directly at its strictest setting.
 2. **Build** all targets.
-3. **Scan** them with Trivy for fixable HIGH and CRITICAL vulnerabilities.
+3. **Scan** them with Trivy and with Grype for fixable HIGH and CRITICAL vulnerabilities. Neither scanner is a
+   superset of the other, so both run on every target.
 4. **Audit** each image with Dockle against the CIS Docker Benchmark, per target: the non-root last-user check stays
    active on every target but the two named `cli` exceptions, and the health check requirement stays active on every
    target that runs a process of its own. It also checks for orphan setuid and setgid bits, credentials in the
    environment, `COPY` over `ADD`, and a clean package cache.
 5. **Efficiency** check of the layers with dive against the thresholds in `.dive-ci` (no unpruned build dependency, no
-   forgotten cache).
+   forgotten cache). Five targets are held to `.dive-ci-shadowed` instead, because they replace files that arrived in
+   the upstream base and dive counts a shadowed file as waste no pruning can reach.
 6. **Smoke** the runtime contract in throwaway containers (non-root, extensions, hardening, OPcache mode, health check,
    pinned tool versions, development tooling present only where it belongs).
 
@@ -291,7 +300,8 @@ written once, in `docker-compose.yml`, which the Makefile reads and Dependabot t
 behind.
 `make review-<family>` scopes the whole gate to a single family. Baseline suppressions and thresholds are documented,
 each with a justification and a date: the lint relaxations in `.hadolint.yaml`, the layer-efficiency thresholds in
-`.dive-ci`, and the per-target CIS exemptions in the Makefile beside the audit runner they apply to.
+`.dive-ci` and the shadowed-layer variant beside it in `.dive-ci-shadowed`, and the per-target CIS exemptions in the
+Makefile beside the audit runner they apply to.
 
 <div id='adding-a-family'></div>
 

@@ -31,10 +31,10 @@ target also carries a floating alias, and a project may take either form.
 
 | Tag                     | Alias             | Target        | Purpose                                                         |
 |:------------------------|:------------------|:--------------|:----------------------------------------------------------------|
-| `8.5-runtime-1.0.2`     | `8.5-runtime`     | `runtime`     | Production PHP-FPM runtime.                                     |
-| `8.5-development-1.0.2` | `8.5-development` | `development` | Development runtime: runtime plus Xdebug, Composer, bash, git.  |
-| `8.5-builder-1.0.2`     | `8.5-builder`     | `builder`     | Composer toolchain for the builder stage of a production image. |
-| `8.5-cli-1.0.2`         | `8.5-cli`         | `cli`         | Makefile tooling: Composer, Xdebug coverage, linters, docker.   |
+| `8.5-runtime-1.0.3`     | `8.5-runtime`     | `runtime`     | Production PHP-FPM runtime.                                     |
+| `8.5-development-1.0.3` | `8.5-development` | `development` | Development runtime: runtime plus Xdebug, Composer, bash, git.  |
+| `8.5-builder-1.0.3`     | `8.5-builder`     | `builder`     | Composer toolchain for the builder stage of a production image. |
+| `8.5-cli-1.0.3`         | `8.5-cli`         | `cli`         | Makefile tooling: Composer, Xdebug coverage, linters, docker.   |
 
 All four are built from one multi-target
 [Dockerfile](https://github.com/gustavofreze/docker-images/blob/main/images/php/8.5/Dockerfile), pinned to
@@ -64,6 +64,9 @@ Every image provides, and no consuming Dockerfile re-declares:
 - Extensions: the official image set (curl, sodium, mbstring, and the rest) plus `bcmath`, `pdo_mysql`, and `zip`, built
   with no leftover build dependencies.
 - A non-root runtime: PHP-FPM runs as `www-data`, `WORKDIR /var/www/html` owned by it.
+- A current openssl. The upstream base ships whatever `libcrypto3`, `libssl3`, and `openssl` were current when it
+  was tagged, and those age in place between base releases, so every image here upgrades them to what the Alpine
+  index serves at build time. A consuming Dockerfile does not need to repeat it.
 - Production hardening: `php.ini-production` active (the development template is deleted), `expose_php` and
   `display_errors` off, `allow_url_include` off, arguments stripped from exception traces, strict and transport-locked
   session cookies, and the process escape functions (`exec`, `shell_exec`, `system`, `proc_open`, `popen`, `passthru`)
@@ -98,19 +101,19 @@ A project consumes the base in two thin files and adds only its own dependencies
 
 ```dockerfile
 # syntax=docker/dockerfile:1
-FROM gustavofreze/php:8.5-development-1.0.2
+FROM gustavofreze/php:8.5-development-1.0.3
 COPY ./ /var/www/html
 ```
 
 ```dockerfile
 # syntax=docker/dockerfile:1
-FROM gustavofreze/php:8.5-builder-1.0.2 AS builder
+FROM gustavofreze/php:8.5-builder-1.0.3 AS builder
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
 COPY ./ ./
 RUN composer dump-autoload --optimize --classmap-authoritative
 
-FROM gustavofreze/php:8.5-runtime-1.0.2
+FROM gustavofreze/php:8.5-runtime-1.0.3
 COPY --from=builder --chown=www-data:www-data /var/www/html /var/www/html
 ```
 
@@ -119,8 +122,8 @@ COPY --from=builder --chown=www-data:www-data /var/www/html /var/www/html
 The `cli` image is invoked directly and never appears in a Dockerfile:
 
 ```shell
-docker run --rm -v "$(pwd)":/var/www/html gustavofreze/php:8.5-cli-1.0.2 composer install
-docker run --rm -v "$(pwd)":/var/www/html gustavofreze/php:8.5-cli-1.0.2 phpcs src/
+docker run --rm -v "$(pwd)":/var/www/html gustavofreze/php:8.5-cli-1.0.3 composer install
+docker run --rm -v "$(pwd)":/var/www/html gustavofreze/php:8.5-cli-1.0.3 phpcs src/
 ```
 
 ### As an FPM service
@@ -128,7 +131,7 @@ docker run --rm -v "$(pwd)":/var/www/html gustavofreze/php:8.5-cli-1.0.2 phpcs s
 ```yaml
 services:
     php:
-        image: gustavofreze/php:8.5-development-1.0.2
+        image: gustavofreze/php:8.5-development-1.0.3
         volumes:
             - ./:/var/www/html
         expose:
@@ -161,7 +164,7 @@ Every tag also carries an [OpenVEX](https://openvex.dev) analysis as a cosign at
 image is genuinely affected. A scanner that reads it applies the analysis on its own:
 
 ```shell
-trivy image --vex oci gustavofreze/php:8.5-cli-1.0.2
+trivy image --vex oci gustavofreze/php:8.5-cli-1.0.3
 ```
 
 Today it covers the Go standard library compiled into the docker CLI that `cli` carries. Those statements are
