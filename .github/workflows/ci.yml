@@ -4,7 +4,9 @@ on:
   pull_request:
     branches: [ main ]
   schedule:
-    - cron: '0 0 * * 0'
+    # Monthly, on the first. The gate is otherwise driven by pull requests, and this run exists only
+    # to catch a scanner database that moved under a tree nobody touched.
+    - cron: '0 0 1 * *'
   workflow_dispatch:
 
 concurrency:

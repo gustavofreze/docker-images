@@ -1,10 +1,15 @@
 version: 2
 
+# Every ecosystem runs monthly. An update here is never merged on its own: it changes a build unit, so
+# it bumps that unit's VERSION and republishes immutable tags, and each republication costs a full
+# multi-architecture build, scan, audit and smoke run. Monthly is the cadence that rate is worth. The
+# cooldown below is a separate floor and stays at 7 days: it is the dependency policy, not a schedule.
+
 updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     # Mirrors the repository dependency policy: never adopt a release published less than 7 days ago.
     cooldown:
       default-days: 7
@@ -23,7 +28,7 @@ updates:
       - "/images/php/8.5"
       - "/images/python/3.14"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     cooldown:
       default-days: 7
     commit-message:
@@ -43,7 +48,7 @@ updates:
     directories:
       - "/images/python/3.14"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     cooldown:
       default-days: 7
     commit-message:
@@ -66,7 +71,7 @@ updates:
   - package-ecosystem: "docker-compose"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     cooldown:
       default-days: 7
     commit-message:
