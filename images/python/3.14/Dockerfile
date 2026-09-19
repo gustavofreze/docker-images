@@ -24,7 +24,8 @@ ENV PATH="/app/.venv/bin:${PATH}" \
 
 RUN --mount=type=bind,source=requirements.txt,target=/tmp/requirements.txt \
     --mount=type=bind,source=constraints.txt,target=/tmp/constraints.txt \
-    apk add --no-cache ca-certificates git build-base libffi-dev openssl-dev linux-headers \
+    apk add --no-cache --upgrade libuuid \
+    && apk add --no-cache ca-certificates git build-base libffi-dev openssl-dev linux-headers \
     && python3 -m pip install --no-cache-dir \
         --requirement /tmp/requirements.txt --constraint /tmp/constraints.txt \
     && rm -rf /root/.cache
@@ -64,7 +65,7 @@ ENV PATH="/app/.venv/bin:${PATH}" \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONFAULTHANDLER=1
 
-RUN apk add --no-cache --upgrade libcrypto3 libssl3 \
+RUN apk add --no-cache --upgrade libcrypto3 libssl3 libuuid \
     && apk add --no-cache ca-certificates \
     && python3 -m pip uninstall --yes pip \
     && rm -rf /root/.cache \
