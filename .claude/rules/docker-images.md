@@ -86,7 +86,7 @@ bare `COPY --from=<image>` pin.
 Every published tag is `<upstream-minor>-<role>-<semver>`, where `role` is identical to the stage name. There is no bare
 tag: a role always sits between the upstream minor and the semantic version. Version tags are immutable, so any input
 change bumps the build unit `VERSION`. `latest` is forbidden. Each stage also carries one floating alias
-`<upstream-minor>-<role>` that the weekly security rebuild republishes. Be precise about what that rebuild can do:
+`<upstream-minor>-<role>` that the monthly security rebuild republishes. Be precise about what that rebuild can do:
 because every `FROM` pins an exact patch and distro release, pulling that pin again returns the same bytes, so the
 rebuild refreshes only the packages this repository installs itself through `apk add` and nothing in the inherited base
 layers. What moves the base forward is Dependabot opening a pull request for the next upstream patch, which bumps the
@@ -284,9 +284,11 @@ simplifying an instruction: each item below is load bearing, and the build or th
   version, is what the scanners judge. It enters through a named stage rather than a bare
   `COPY --from=<image>`, because Dependabot's Docker parser matches `FROM` lines and nothing else, so a
   bare reference would be a pin carrying Go advisories that no updater watches. A caller still has to
-  mount the host socket itself, which is root-equivalent on the host. The same tag string is repeated
-  in the `action_statement` of every statement in `vex/php.openvex.json`, which Dependabot does not
-  read, so a bump to this pin moves the Dockerfile and that document in one change.
+  mount the host socket itself, which is root-equivalent on the host. Whatever the pin carries that Go
+  has already fixed is the family's accepted risk, so a bump to it also rewrites the family VEX and
+  both gate policies, or deletes all three when the new toolchain leaves nothing to accept.
+  `docker:29.8.0-cli-alpine3.24` is built with Go 1.26.8, which is why the PHP family now carries none
+  of the three.
 - **The openssl packages are named in `apk add` with `--upgrade`, and nothing else is.** An upstream
   base ships whatever openssl was current when it was tagged, and that ages in place: both
   `python:3.14.7-alpine3.24` and `php:8.5.9-fpm-alpine3.24` carried 3.5.7-r0 while the v3.24 index
@@ -302,7 +304,7 @@ simplifying an instruction: each item below is load bearing, and the build or th
   kept to openssl rather than a blanket `apk upgrade`, which would also drag sqlite-libs and
   apk-tools along, because every upgraded package shadows the base layer's copy and the shadowed
   bytes count against the dive thresholds, per § Lean layers. Naming them in `apk add` is also what
-  brings them inside the weekly security rebuild, which refreshes exactly the unpinned packages this
+  brings them inside the monthly security rebuild, which refreshes exactly the unpinned packages this
   repository installs itself. Widen the set only when a scanner reports a package it does not cover.
 - **The gate runs two vulnerability scanners.** Trivy reads the distro security database, Grype
   cross-references upstream advisories and Go module data. Neither is a superset: Grype caught a HIGH
@@ -358,7 +360,7 @@ survives code changes.
 
 Both tag forms are published and a consumer picks one. The versioned tag is reproducible and moves only on a bump,
 which is why `Dockerfile.prod` and anything else that ships names it. The floating `<upstream-minor>-<role>` alias
-picks up the weekly security rebuild with no pull request and gives up reproducibility for it, a fair trade for the
+picks up the monthly security rebuild with no pull request and gives up reproducibility for it, a fair trade for the
 `cli` tooling and for a local `Dockerfile.dev`. An alias never crosses an upstream minor, and it moves only when the
 client re-pulls, so `--pull=always` is what makes it float.
 

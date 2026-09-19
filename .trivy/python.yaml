@@ -3,7 +3,7 @@
 # it. This file is read only by the Python scans, through --ignorefile, so nothing here reaches another
 # family. The Makefile withholds it from the runtime target, which it scans bare with neither this file
 # nor the VEX, so restoring pip in production fails that scan instead of inheriting these entries. The
-# weekly rebuild passes it to every target, because there it answers a different question: whether a
+# monthly rebuild passes it to every target, because there it answers a different question: whether a
 # finding is worth opening an issue about, not whether the gate blocks on it.
 #
 # Both entries are the copies pip vendors inside its own wheel, listed in
@@ -27,15 +27,22 @@
 # now accepted anywhere in the family, including in site-packages if they ever reappeared there. That
 # is why the two identifiers are named individually and no wildcard is used.
 #
-# Accepted 2026-08-17. GHSA-6v7p-g79w-8964 retires when a pip release vendors msgpack 1.2.1 or later,
-# and CVE-2025-47273 when a pip release declares setuptools 78.1.1 or later or stops declaring it. At
-# either point the finding disappears rather than being accepted. `expired_at` forces the question
-# either way.
+# Accepted 2026-08-17, re-verified 2026-09-19 against pip 26.2.1, which is still the newest release:
+# it vendors msgpack 1.1.2, declares setuptools 70.3.0, and `import setuptools` still raises
+# ModuleNotFoundError inside the image. GHSA-6v7p-g79w-8964 retires when a pip release vendors msgpack
+# 1.2.1 or later, and CVE-2025-47273 when a pip release declares setuptools 78.1.1 or later or stops
+# declaring it. At either point the finding disappears rather than being accepted. `expired_at` forces
+# the question either way.
+#
+# The window is a quarter rather than a month. The first one was a month, so it lapsed on 2026-09-17
+# with both findings unchanged, which turns the gate red on a decision nobody revisited rather than on
+# a finding that moved. The rebuild is monthly now, and an expiry set to that same period would do this
+# every cycle. Three cycles is long enough to be a real prompt and short enough to still be one.
 vulnerabilities:
     - id: GHSA-6v7p-g79w-8964
       statement: "msgpack vendored inside pip, reachable only through the HTTP cache that PIP_NO_CACHE_DIR=1 disables."
-      expired_at: 2026-09-17
+      expired_at: 2026-12-19
 
     - id: CVE-2025-47273
       statement: "setuptools declared in pip's vendor manifest but not importable in any target."
-      expired_at: 2026-09-17
+      expired_at: 2026-12-19

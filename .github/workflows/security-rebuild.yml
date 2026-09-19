@@ -2,7 +2,9 @@ name: Security rebuild
 
 on:
   schedule:
-    - cron: '0 6 * * 1'
+    # Monthly, on the second, a day behind the scheduled CI run so a scanner database that moved
+    # reports through the gate before it rebuilds and republishes every alias.
+    - cron: '0 6 2 * *'
   workflow_dispatch:
 
 concurrency:
@@ -144,7 +146,7 @@ jobs:
           fi
 
           # The same acceptance the gate reads, so a finding this repository has already decided it
-          # cannot fix is not reported back every week as actionable. Trivy honors each entry's
+          # cannot fix is not reported back every month as actionable. Trivy honors each entry's
           # expired_at, so the issue reopens on its own the day the acceptance lapses.
           accepted=()
           if [[ -f "${policy}" ]]; then

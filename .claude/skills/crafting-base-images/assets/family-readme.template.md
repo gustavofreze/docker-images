@@ -39,7 +39,7 @@ All four are built from one multi-target
 [Dockerfile](https://github.com/gustavofreze/docker-images/blob/main/images/<family>/<minor>/Dockerfile),
 pinned to `<upstream pin>`. The alias tracks the latest rebuild of its target and never crosses an
 upstream minor. Take the versioned tag for anything that ships, because it is reproducible and moves
-only when you bump it. Take the alias when the weekly security rebuild arriving without a pull request
+only when you bump it. Take the alias when the monthly security rebuild arriving without a pull request
 is worth more than that, which is usually the case for `cli` and for local development.
 
 ## Image variants

@@ -22,6 +22,33 @@ run() {
     docker run --rm --entrypoint "" "${image}" "$@"
 }
 
+# The versions this unit installs are pinned in requirements.txt and requirements-development.txt,
+# which are in an ecosystem Dependabot reads. A copy here is a second place the same pin lives, so
+# every update Dependabot opens fails this suite on a string rather than on the contract, and no
+# automated bump can clear it. Poetry moving from 2.4.1 to 2.4.2 did exactly that. Reading the pin
+# keeps the assertion at full patch precision and still lets it move with the file that owns it.
+pinned_version() {
+    local package="${1:?Usage: pinned_version <package>}"
+    local unit version
+
+    unit="$(dirname "$(dirname "${BASH_SOURCE[0]}")")"
+
+    version="$(grep -hoE "^${package}==[^[:space:]]+" \
+        "${unit}/requirements.txt" "${unit}/requirements-development.txt" | head -1)" || true
+
+    [[ -n "${version}" ]] || {
+        smoke_fail "no pin for ${package} in ${unit}/requirements.txt or requirements-development.txt"
+        return 1
+    }
+
+    printf '%s' "${version##*=}"
+}
+
+PIP_VERSION="$(pinned_version pip)"
+POETRY_VERSION="$(pinned_version poetry)"
+DEBUGPY_VERSION="$(pinned_version debugpy)"
+readonly PIP_VERSION POETRY_VERSION DEBUGPY_VERSION
+
 verify_shared_contract() {
     local image="${1:?Usage: verify_shared_contract <image> <label>}"
     local label="${2:?Usage: verify_shared_contract <image> <label>}"
@@ -56,9 +83,9 @@ verify_development_image() {
 
     verify_shared_contract "${image}" "development image"
     assert_contains "app" "$(run "${image}" whoami)" "development image runs as the non-root app user"
-    assert_contains "Poetry (version 2.4.1)" "$(run "${image}" poetry --version)" "pinned Poetry version present"
-    assert_contains "pip 26.2" "$(run "${image}" python3 -m pip --version)" "pinned pip restored in the development image"
-    assert_contains "1.8.21" "$(run "${image}" python3 -m debugpy --version 2>&1)" "pinned debugpy version present"
+    assert_contains "Poetry (version ${POETRY_VERSION})" "$(run "${image}" poetry --version)" "pinned Poetry version present"
+    assert_contains "pip ${PIP_VERSION}" "$(run "${image}" python3 -m pip --version)" "pinned pip restored in the development image"
+    assert_contains "${DEBUGPY_VERSION}" "$(run "${image}" python3 -m debugpy --version 2>&1)" "pinned debugpy version present"
     assert_contains "GNU bash" "$(run "${image}" bash --version)" "bash present in the development image"
     assert_contains "git version" "$(run "${image}" git --version)" "git present in the development image"
     assert_absent "${image}" "gcc" "compiler pruned from the development image"
@@ -71,8 +98,8 @@ verify_builder_image() {
 
     verify_shared_contract "${image}" "builder"
     assert_contains "app" "$(run "${image}" whoami)" "builder runs as the non-root app user"
-    assert_contains "Poetry (version 2.4.1)" "$(run "${image}" poetry --version)" "pinned Poetry version present in the builder"
-    assert_contains "pip 26.2" "$(run "${image}" python3 -m pip --version)" "pinned pip version present in the builder"
+    assert_contains "Poetry (version ${POETRY_VERSION})" "$(run "${image}" poetry --version)" "pinned Poetry version present in the builder"
+    assert_contains "pip ${PIP_VERSION}" "$(run "${image}" python3 -m pip --version)" "pinned pip version present in the builder"
     assert_contains "gcc" "$(run "${image}" gcc --version)" "C toolchain kept for wheel builds"
     assert_contains "git version" "$(run "${image}" git --version)" "git available for git-hosted dependencies"
     assert_contains "true" "$(run "${image}" printenv POETRY_VIRTUALENVS_IN_PROJECT)" "Poetry creates the virtual environment inside the project"
@@ -85,7 +112,7 @@ verify_cli_image() {
     echo "[smoke] verifying cli ${image}"
 
     verify_shared_contract "${image}" "cli"
-    assert_contains "Poetry (version 2.4.1)" "$(run "${image}" poetry --version)" "Poetry present in cli"
+    assert_contains "Poetry (version ${POETRY_VERSION})" "$(run "${image}" poetry --version)" "Poetry present in cli"
     assert_absent "${image}" "docker" "docker CLI absent from cli"
     assert_contains "GNU bash" "$(run "${image}" bash --version)" "bash present in cli"
     assert_contains "git version" "$(run "${image}" git --version)" "git present in cli"

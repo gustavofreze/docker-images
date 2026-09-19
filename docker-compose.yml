@@ -12,7 +12,7 @@ services:
     dive:
         image: wagoodman/dive:v0.13.1
     grype:
-        image: anchore/grype:v0.117.0
+        image: anchore/grype:v0.118.0
     trivy:
         image: aquasec/trivy:0.74.0
     dockle:

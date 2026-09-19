@@ -64,13 +64,10 @@ docker-images/
 ├── Makefile                        # build, review, publish
 ├── docker-compose.yml              # validator image versions, single source, Dependabot tracked
 ├── vex/                            # per-CVE analysis, published with the images as an attestation
-│   ├── php.openvex.json
-│   └── python.openvex.json
+│   └── python.openvex.json         # one file per family that has one, and php currently has none
 ├── .grype/                         # gate policy for Grype: risks with no remediation, per family
-│   ├── php.yaml
 │   └── python.yaml
 ├── .trivy/                         # the same acceptance for Trivy, which names them differently
-│   ├── php.yaml
 │   └── python.yaml
 ├── scripts/
 │   ├── smoke-lib.sh                # shared host-side smoke helpers every family sources
@@ -184,17 +181,17 @@ gustavofreze/<family>:<upstream-minor>-<role>-<V>
   that touches a build unit without bumping its `VERSION`.
 - `latest` is forbidden.
 - Each stage also carries one floating alias `<upstream-minor>-<role>` (`8.5-runtime`, `3.14-builder`, and the rest).
-  The weekly rebuild repoints these aliases. Both forms are supported in a project: the versioned tag is reproducible
-  and moves only when you bump it, the alias picks up the weekly security rebuild without a pull request and gives up
+  The monthly rebuild repoints these aliases. Both forms are supported in a project: the versioned tag is reproducible
+  and moves only when you bump it, the alias picks up the monthly security rebuild without a pull request and gives up
   reproducibility for it. An alias never crosses an upstream minor, so `8.5-runtime` stays on 8.5 after 8.6 ships.
 
-Be precise about what that weekly rebuild can and cannot do. Because every `FROM` pins an exact patch and distro
+Be precise about what that monthly rebuild can and cannot do. Because every `FROM` pins an exact patch and distro
 release, and the official images publish a new tag rather than rewriting an old one, pulling that pin again always
 returns the same bytes. The rebuild therefore refreshes only the handful of packages this repository installs itself
 through `apk add`, which carry no version pin, and nothing in the inherited base layers or in the PHP and CPython
 binaries. What actually moves the base forward is Dependabot opening a pull request for the next upstream patch, which
 then bumps the build unit `VERSION` and republishes. The rebuild's second job is detection: it scans the published
-versioned tags every week and opens an issue when the advisory names a fixed release and no accepted-risk entry
+versioned tags every month and opens an issue when the advisory names a fixed release and no accepted-risk entry
 covers it for that family. That is narrower than remediable. A fix published upstream still needs an artifact this
 repository can pin, and where none exists yet the answer is an acceptance entry with a VEX statement rather than a
 bump.
@@ -249,8 +246,12 @@ every image, versioned at `vex/<family>.openvex.json`. It states per CVE whether
 `affected` statements are reported rather than silenced: the risk is disclosed, not hidden. Whether the local gate stops
 on one is a separate decision, recorded in `.grype/<family>.yaml` and `.trivy/<family>.yaml` with the date it was
 accepted and the condition that retires it, and never mixed into the analysis. Both files are needed because the two
-scanners name the same finding differently, by GO advisory and by CVE. How to pass the document to a scanner is in each
-family's README, [PHP](images/php/README.md) and [Python](images/python/README.md).
+scanners name the same finding differently, by GO advisory and by CVE.
+
+A family that carries no such finding publishes none of the three and scans bare, which is the state to aim for rather
+than the exception. Only Python carries any today, and [its README](images/python/README.md) says how to pass the
+document to a scanner. PHP carried eight Go standard library advisories until the docker CLI it copies moved to a
+toolchain that fixed them, and all three files went with them.
 
 <div id='usage-contract'></div>
 
@@ -261,7 +262,7 @@ family lives in that family's README. The rules that hold across every family:
 
 1. Choose the tag form deliberately. The full versioned tag is reproducible and is the default for anything that
    ships. The floating `<upstream-minor>-<role>` alias is supported too, and it trades that reproducibility for the
-   weekly security rebuild arriving without a pull request. `latest` does not exist.
+   monthly security rebuild arriving without a pull request. `latest` does not exist.
 2. Do not re-declare what the base provides: extensions, the non-root user, hardening, OPcache defaults, the virtual
    environment path, the health check, the interpreter defaults.
 3. Ship a `.dockerignore` next to each Dockerfile, and never copy a secret into a build context.
