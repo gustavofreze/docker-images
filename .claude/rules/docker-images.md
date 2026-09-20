@@ -289,23 +289,28 @@ simplifying an instruction: each item below is load bearing, and the build or th
   both gate policies, or deletes all three when the new toolchain leaves nothing to accept.
   `docker:29.8.0-cli-alpine3.24` is built with Go 1.26.8, which is why the PHP family now carries none
   of the three.
-- **The openssl packages are named in `apk add` with `--upgrade`, and nothing else is.** An upstream
-  base ships whatever openssl was current when it was tagged, and that ages in place: both
-  `python:3.14.7-alpine3.24` and `php:8.5.9-fpm-alpine3.24` carried 3.5.7-r0 while the v3.24 index
-  served 3.5.8-r0, with no newer base tag to move to. A finding with a published fix is not
+- **An inherited package is named in `apk add` with `--upgrade`, and only once a scanner reported
+  it.** An upstream base ships whatever was current when it was tagged, and that ages in place: both
+  `python:3.14.7-alpine3.24` and `php:8.5.9-fpm-alpine3.24` carried openssl 3.5.7-r0 while the v3.24
+  index served 3.5.8-r0, and `python:3.14.7-alpine3.24` carried libuuid 2.42.1-r0 against an index
+  serving 2.42.3-r1, each with no newer base tag to move to. A finding with a published fix is not
   acceptable risk under § Vulnerability acceptance, so the fix has to enter the image. A bare
   `apk add libcrypto3` is a no-op on a package that is already installed and already satisfies the
   constraint, so only `--upgrade` moves it. The line sits in each stage built directly on an upstream
-  base, which is the php `builder` and `runtime` and the python `runtime`, and every other target
-  inherits the result through its parent stage. The python `builder` is the one that needs no line,
-  because `openssl-dev` already pulls the current package in. Each family names the packages its own
-  base actually ships, so php names `libcrypto3 libssl3 openssl` and python names only the two
-  libraries: adding `openssl` to python would install a binary that base does not carry. The set is
-  kept to openssl rather than a blanket `apk upgrade`, which would also drag sqlite-libs and
-  apk-tools along, because every upgraded package shadows the base layer's copy and the shadowed
+  base, which is the php `builder` and `runtime` and the python `builder` and `runtime`, and every
+  other target inherits the result through its parent stage. Each family names the packages its own
+  base actually ships, so php names `libcrypto3 libssl3 openssl` and python names
+  `libcrypto3 libssl3 libuuid`: adding `openssl` to python would install a binary that base does not
+  carry, and php carries no util-linux package to name. The python `builder` names libuuid alone,
+  because `openssl-dev` already pulls the current openssl in there and nothing pulls libuuid. The set
+  is kept to what was reported rather than a blanket `apk upgrade`, which would also drag sqlite-libs
+  and apk-tools along, because every upgraded package shadows the base layer's copy and the shadowed
   bytes count against the dive thresholds, per § Lean layers. Naming them in `apk add` is also what
   brings them inside the monthly security rebuild, which refreshes exactly the unpinned packages this
-  repository installs itself. Widen the set only when a scanner reports a package it does not cover.
+  repository installs itself, and the monthly rebuild leaves an unnamed package four times longer to
+  age than the weekly one did. Widen the set when a scanner reports a package it does not cover: that
+  is how libuuid entered it, after seven HIGH findings stopped the Python gate on a copy no rebuild
+  could refresh.
 - **The gate runs two vulnerability scanners.** Trivy reads the distro security database, Grype
   cross-references upstream advisories and Go module data. Neither is a superset: Grype caught a HIGH
   in the Go stdlib of a vendored binary that Trivy reported clean on the same image. An accepted

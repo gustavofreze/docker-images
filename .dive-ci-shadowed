@@ -8,6 +8,10 @@
 #     place. Upgrading it inside the image is the only remediation while no newer base tag exists, and
 #     the upgrade leaves the original 5 MB of libcrypto3 behind in the base layer. Every target built
 #     on a base this repository upgrades carries that shadow, directly or through its parent stage.
+#   - libuuid, in the Python family only. Same shape as openssl and the same remediation, added after
+#     a scan reported seven HIGH findings against the copy the base carried. It is 29 KiB, so its own
+#     shadow is negligible next to openssl's, and it is listed here because it is the second package
+#     upgraded in place rather than because it moves a threshold.
 #   - pip, in the Python runtime only. It uninstalls the installer on purpose, which shadows the
 #     interpreter's own tree. That waste predates this file, and the 2026-08-11 calibration recorded
 #     in .dive-ci covered the runtime with pip already gone and met the strict floors then, so the
@@ -29,8 +33,24 @@
 #
 # An unpruned build dependency or a forgotten cache in any of them still fails here.
 #
-# Retires when the shadow does. If an upstream base ships a current openssl, drop the upgrade from
-# that family's Dockerfile and move its targets back to .dive-ci.
+# Retires when the upgrade lines do, and not when a base happens to be current. Measured again on
+# 2026-09-19 at build unit 1.0.4, with both bases shipping the openssl the v3.24 index served, so
+# every upgrade resolved to a no-op and nothing was shadowed at all:
+#
+#   php runtime        99.2% efficient,  1.1% user waste,  1.1 MB wasted
+#   php development    99.1% efficient,  1.2% user waste,  1.4 MB wasted
+#   php builder        99.2% efficient,  1.1% user waste,  1.2 MB wasted
+#   python runtime     99.3% efficient,  1.5% user waste,  0.6 MB wasted
+#   python development 96.7% efficient,  7.1% user waste, 12.1 MB wasted
+#
+# All five clear .dive-ci at those numbers, which is what an earlier version of this note read as the
+# condition to move them back. It is the wrong condition. A base being current is a state that flips
+# every time the index serves a package ahead of the base tag, which is the exact condition the
+# upgrade lines exist to answer, and the monthly rebuild leaves four times longer to occur than the
+# weekly one did. Moving these five to .dive-ci would buy nothing on a day like this one and would
+# make the gate pass or fail by which day it ran. They stay here until a family stops upgrading
+# inherited packages at all, which § Where the reasoning lives in the docker-images rule forbids for
+# a separate reason: naming a package in apk add is what brings it inside the rebuild's refresh.
 rules:
   # Unique bytes over total bytes.
   lowestEfficiency: 0.88
