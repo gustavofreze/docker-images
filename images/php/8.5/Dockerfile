@@ -2,7 +2,7 @@
 
 FROM composer:2.10.3 AS composer
 
-FROM docker:29.8.0-cli-alpine3.24 AS docker-cli
+FROM docker:29.8.1-cli-alpine3.24 AS docker-cli
 
 FROM php:8.5.10-fpm-alpine3.24 AS builder
 
