@@ -31,10 +31,10 @@ target also carries a floating alias, and a project may take either form.
 
 | Tag                     | Alias             | Target        | Purpose                                                         |
 |:------------------------|:------------------|:--------------|:----------------------------------------------------------------|
-| `8.5-runtime-1.0.4`     | `8.5-runtime`     | `runtime`     | Production PHP-FPM runtime.                                     |
-| `8.5-development-1.0.4` | `8.5-development` | `development` | Development runtime: runtime plus Xdebug, Composer, bash, git.  |
-| `8.5-builder-1.0.4`     | `8.5-builder`     | `builder`     | Composer toolchain for the builder stage of a production image. |
-| `8.5-cli-1.0.4`         | `8.5-cli`         | `cli`         | Makefile tooling: Composer, Xdebug coverage, linters, docker.   |
+| `8.5-runtime-1.0.5`     | `8.5-runtime`     | `runtime`     | Production PHP-FPM runtime.                                     |
+| `8.5-development-1.0.5` | `8.5-development` | `development` | Development runtime: runtime plus Xdebug, Composer, bash, git.  |
+| `8.5-builder-1.0.5`     | `8.5-builder`     | `builder`     | Composer toolchain for the builder stage of a production image. |
+| `8.5-cli-1.0.5`         | `8.5-cli`         | `cli`         | Makefile tooling: Composer, Xdebug coverage, linters, docker.   |
 
 All four are built from one multi-target
 [Dockerfile](https://github.com/gustavofreze/docker-images/blob/main/images/php/8.5/Dockerfile), pinned to
@@ -101,19 +101,19 @@ A project consumes the base in two thin files and adds only its own dependencies
 
 ```dockerfile
 # syntax=docker/dockerfile:1
-FROM gustavofreze/php:8.5-development-1.0.4
+FROM gustavofreze/php:8.5-development-1.0.5
 COPY ./ /var/www/html
 ```
 
 ```dockerfile
 # syntax=docker/dockerfile:1
-FROM gustavofreze/php:8.5-builder-1.0.4 AS builder
+FROM gustavofreze/php:8.5-builder-1.0.5 AS builder
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
 COPY ./ ./
 RUN composer dump-autoload --optimize --classmap-authoritative
 
-FROM gustavofreze/php:8.5-runtime-1.0.4
+FROM gustavofreze/php:8.5-runtime-1.0.5
 COPY --from=builder --chown=www-data:www-data /var/www/html /var/www/html
 ```
 
@@ -122,8 +122,8 @@ COPY --from=builder --chown=www-data:www-data /var/www/html /var/www/html
 The `cli` image is invoked directly and never appears in a Dockerfile:
 
 ```shell
-docker run --rm -v "$(pwd)":/var/www/html gustavofreze/php:8.5-cli-1.0.4 composer install
-docker run --rm -v "$(pwd)":/var/www/html gustavofreze/php:8.5-cli-1.0.4 phpcs src/
+docker run --rm -v "$(pwd)":/var/www/html gustavofreze/php:8.5-cli-1.0.5 composer install
+docker run --rm -v "$(pwd)":/var/www/html gustavofreze/php:8.5-cli-1.0.5 phpcs src/
 ```
 
 ### As an FPM service
@@ -131,7 +131,7 @@ docker run --rm -v "$(pwd)":/var/www/html gustavofreze/php:8.5-cli-1.0.4 phpcs s
 ```yaml
 services:
     php:
-        image: gustavofreze/php:8.5-development-1.0.4
+        image: gustavofreze/php:8.5-development-1.0.5
         volumes:
             - ./:/var/www/html
         expose:
@@ -164,7 +164,7 @@ This family carries no accepted risk, so it publishes no [OpenVEX](https://openv
 exemption of any kind. Every scan in the gate runs bare, and what it reports is what the images contain:
 
 ```shell
-trivy image gustavofreze/php:8.5-cli-1.0.4
+trivy image gustavofreze/php:8.5-cli-1.0.5
 ```
 
 It published one until 1.0.3. The docker CLI that `cli` carries was built with a Go toolchain older than the release
