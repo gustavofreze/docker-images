@@ -6,11 +6,11 @@
 # monthly rebuild passes it to every target, because there it answers a different question: whether a
 # finding is worth opening an issue about, not whether the gate blocks on it.
 #
-# Both entries are the copies pip vendors inside its own wheel, listed in
-# pip/_vendor/bom.cdx.json, which Trivy reads as a separate component named "Python". They are not the
-# packages the image installs: the installed msgpack is pinned to 1.2.1 by constraints.txt and scans
+# Every entry is a copy pip vendors inside its own wheel, listed in pip/_vendor/bom.cdx.json, which
+# Trivy reads as a separate component named "Python". They are not the packages the image installs: the
+# installed msgpack is pinned to 1.2.2 and the installed urllib3 to 2.8.0 by constraints.txt, both scan
 # clean, and setuptools is installed nowhere. pip 26.2.1, the newest release, still vendors msgpack
-# 1.1.2 and declares setuptools 70.3.0, so there is no pip to move to.
+# 1.1.2 and urllib3 2.7.0 and declares setuptools 70.3.0, so there is no pip to move to.
 #
 # The VEX already states both as not_affected, with reasoning verified inside the image: `import
 # setuptools` raises ModuleNotFoundError on all four targets, and the three targets that ship pip
@@ -21,11 +21,11 @@
 # a gate that passes or fails by environment is not a gate. They make the decision explicit instead of
 # inherited.
 #
-# Neither entry carries a `paths` restriction, unlike .trivy/php.yaml. Trivy names this component
-# "Python" rather than a file path, so a path restriction matches nothing and the entry silently fails
-# to apply, which was measured before writing it this way. The cost is real: these two identifiers are
-# now accepted anywhere in the family, including in site-packages if they ever reappeared there. That
-# is why the two identifiers are named individually and no wildcard is used.
+# No entry carries a `paths` restriction, unlike .trivy/php.yaml. Trivy names this component "Python"
+# rather than a file path, so a path restriction matches nothing and the entry silently fails to apply,
+# which was measured before writing it this way. The cost is real: these identifiers are now accepted
+# anywhere in the family, including in site-packages if they ever reappeared there. That is why each
+# identifier is named individually and no wildcard is used.
 #
 # Accepted 2026-08-17, re-verified 2026-09-19 against pip 26.2.1, which is still the newest release:
 # it vendors msgpack 1.1.2, declares setuptools 70.3.0, and `import setuptools` still raises
@@ -38,6 +38,13 @@
 # with both findings unchanged, which turns the gate red on a decision nobody revisited rather than on
 # a finding that moved. The rebuild is monthly now, and an expiry set to that same period would do this
 # every cycle. Three cycles is long enough to be a real prompt and short enough to still be one.
+#
+# The two urllib3 entries are a different kind of acceptance. The VEX states them affected, not
+# not_affected, because the vendored copy serves every pip run in builder, cli and development, and a
+# reachability argument about pip's internals is not this repository's to make. They are accepted only
+# because no pip release carries the fix. Accepted 2026-10-03 against pip 26.2.1, which vendors urllib3
+# 2.7.0 while the fix for both shipped in 2.8.0. Both retire when a pip release vendoring urllib3 2.8.0
+# or later clears the 7-day cooldown, and they carry the same quarter-long window, counted from that date.
 vulnerabilities:
     - id: GHSA-6v7p-g79w-8964
       statement: "msgpack vendored inside pip, reachable only through the HTTP cache that PIP_NO_CACHE_DIR=1 disables."
@@ -46,3 +53,11 @@ vulnerabilities:
     - id: CVE-2025-47273
       statement: "setuptools declared in pip's vendor manifest but not importable in any target."
       expired_at: 2026-12-19
+
+    - id: CVE-2026-97687
+      statement: "urllib3 2.7.0 vendored inside pip 26.2.1, the newest pip release. The installed urllib3 is 2.8.0."
+      expired_at: 2027-01-03
+
+    - id: CVE-2026-97689
+      statement: "urllib3 2.7.0 vendored inside pip 26.2.1, the newest pip release. The installed urllib3 is 2.8.0."
+      expired_at: 2027-01-03
