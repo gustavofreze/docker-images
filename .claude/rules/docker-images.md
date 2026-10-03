@@ -287,7 +287,7 @@ simplifying an instruction: each item below is load bearing, and the build or th
   mount the host socket itself, which is root-equivalent on the host. Whatever the pin carries that Go
   has already fixed is the family's accepted risk, so a bump to it also rewrites the family VEX and
   both gate policies, or deletes all three when the new toolchain leaves nothing to accept.
-  `docker:29.8.0-cli-alpine3.24` is built with Go 1.26.8, which is why the PHP family now carries none
+  `docker:29.8.1-cli-alpine3.24` is built with Go 1.26.8, which is why the PHP family now carries none
   of the three.
 - **An inherited package is named in `apk add` with `--upgrade`, and only once a scanner reported
   it.** An upstream base ships whatever was current when it was tagged, and that ages in place: both

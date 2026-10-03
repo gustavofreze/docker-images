@@ -2,9 +2,10 @@ name: Security rebuild
 
 on:
   schedule:
-    # Monthly, on the second, a day behind the scheduled CI run so a scanner database that moved
-    # reports through the gate before it rebuilds and republishes every alias.
-    - cron: '0 6 2 * *'
+    # Monthly, on the first, six hours behind the scheduled CI run so a scanner database that moved
+    # reports through the gate before it rebuilds and republishes every alias. The review job below
+    # runs that same gate again, so nothing republishes on a tree that fails it.
+    - cron: '0 6 1 * *'
   workflow_dispatch:
 
 concurrency:
