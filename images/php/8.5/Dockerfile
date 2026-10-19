@@ -48,6 +48,7 @@ ARG XDEBUG_VERSION=3.5.3
 ARG PHPMD_SHA256=6a28ef55de0c753b070d1d1580bb08a0d146016f89f0eddcef60ac4fc1083544
 ARG PHPCS_SHA256=4b010cd21d8bc8a17e2504792e3c77ef8259126f24caf7eafe7eddef1fa871e9
 ARG PHPCBF_SHA256=0b3b8c5571543e94452f6edec0d7e924b287a64c13b73d8dcf3d25f0ee004948
+ARG XDEBUG_SHA256=f073de91bea046106abf4d6071c963ea71e58571df6ce58948ceca89d121cb2d
 
 # hadolint ignore=DL3002
 USER 0
@@ -56,10 +57,13 @@ COPY --from=docker-cli /usr/local/bin/docker /usr/local/bin/docker
 
 RUN apk add --no-cache bash curl \
     && apk add --no-cache --virtual .build-deps ${PHPIZE_DEPS} linux-headers \
-    && pecl install "xdebug-${XDEBUG_VERSION}" \
+    && curl -fsSL -o /tmp/xdebug.tgz "https://pecl.php.net/get/xdebug-${XDEBUG_VERSION}.tgz" \
+    && printf '%s  /tmp/xdebug.tgz\n' "${XDEBUG_SHA256}" > /tmp/xdebug.sha256 \
+    && sha256sum -c /tmp/xdebug.sha256 \
+    && pecl install /tmp/xdebug.tgz \
     && docker-php-ext-enable xdebug \
     && apk del .build-deps \
-    && rm -rf /tmp/pear
+    && rm -rf /tmp/pear /tmp/xdebug.tgz /tmp/xdebug.sha256
 
 RUN curl -fsSL -o /tmp/phpcs.phar "https://github.com/PHPCSStandards/PHP_CodeSniffer/releases/download/${PHPCS_VERSION}/phpcs.phar" \
     && curl -fsSL -o /tmp/phpcbf.phar "https://github.com/PHPCSStandards/PHP_CodeSniffer/releases/download/${PHPCS_VERSION}/phpcbf.phar" \
@@ -118,6 +122,7 @@ LABEL org.opencontainers.image.title="gustavofreze/php-development" \
       org.opencontainers.image.description="PHP 8.5 FPM development runtime: runtime plus Xdebug, Composer, bash, and git"
 
 ARG XDEBUG_VERSION=3.5.3
+ARG XDEBUG_SHA256=f073de91bea046106abf4d6071c963ea71e58571df6ce58948ceca89d121cb2d
 
 USER 0
 
@@ -127,11 +132,14 @@ COPY conf/development.ini ${PHP_INI_DIR}/conf.d/zz-gustavofreze-90-development.i
 COPY conf/fpm-development.conf /usr/local/etc/php-fpm.d/zz-gustavofreze-development.conf
 
 RUN apk add --no-cache bash git unzip libzip \
-    && apk add --no-cache --virtual .build-deps ${PHPIZE_DEPS} linux-headers \
-    && pecl install "xdebug-${XDEBUG_VERSION}" \
+    && apk add --no-cache --virtual .build-deps ${PHPIZE_DEPS} curl linux-headers \
+    && curl -fsSL -o /tmp/xdebug.tgz "https://pecl.php.net/get/xdebug-${XDEBUG_VERSION}.tgz" \
+    && printf '%s  /tmp/xdebug.tgz\n' "${XDEBUG_SHA256}" > /tmp/xdebug.sha256 \
+    && sha256sum -c /tmp/xdebug.sha256 \
+    && pecl install /tmp/xdebug.tgz \
     && docker-php-ext-enable xdebug \
     && apk del .build-deps \
-    && rm -rf /tmp/pear
+    && rm -rf /tmp/pear /tmp/xdebug.tgz /tmp/xdebug.sha256
 
 COPY --from=composer /usr/bin/composer /usr/local/bin/composer
 
