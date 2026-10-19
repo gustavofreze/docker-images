@@ -31,10 +31,10 @@ target also carries a floating alias, and a project may take either form.
 
 | Tag                     | Alias             | Target        | Purpose                                                         |
 |:------------------------|:------------------|:--------------|:----------------------------------------------------------------|
-| `8.5-runtime-1.0.6`     | `8.5-runtime`     | `runtime`     | Production PHP-FPM runtime.                                     |
-| `8.5-development-1.0.6` | `8.5-development` | `development` | Development runtime: runtime plus Xdebug, Composer, bash, git.  |
-| `8.5-builder-1.0.6`     | `8.5-builder`     | `builder`     | Composer toolchain for the builder stage of a production image. |
-| `8.5-cli-1.0.6`         | `8.5-cli`         | `cli`         | Makefile tooling: Composer, Xdebug coverage, linters, docker.   |
+| `8.5-runtime-1.0.7`     | `8.5-runtime`     | `runtime`     | Production PHP-FPM runtime.                                     |
+| `8.5-development-1.0.7` | `8.5-development` | `development` | Development runtime: runtime plus Xdebug, Composer, bash, git.  |
+| `8.5-builder-1.0.7`     | `8.5-builder`     | `builder`     | Composer toolchain for the builder stage of a production image. |
+| `8.5-cli-1.0.7`         | `8.5-cli`         | `cli`         | Makefile tooling: Composer, Xdebug coverage, linters, docker.   |
 
 All four are built from one multi-target
 [Dockerfile](https://github.com/gustavofreze/docker-images/blob/main/images/php/8.5/Dockerfile), pinned to
@@ -101,19 +101,19 @@ A project consumes the base in two thin files and adds only its own dependencies
 
 ```dockerfile
 # syntax=docker/dockerfile:1
-FROM gustavofreze/php:8.5-development-1.0.6
+FROM gustavofreze/php:8.5-development-1.0.7
 COPY ./ /var/www/html
 ```
 
 ```dockerfile
 # syntax=docker/dockerfile:1
-FROM gustavofreze/php:8.5-builder-1.0.6 AS builder
+FROM gustavofreze/php:8.5-builder-1.0.7 AS builder
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
 COPY ./ ./
 RUN composer dump-autoload --optimize --classmap-authoritative
 
-FROM gustavofreze/php:8.5-runtime-1.0.6
+FROM gustavofreze/php:8.5-runtime-1.0.7
 COPY --from=builder --chown=www-data:www-data /var/www/html /var/www/html
 ```
 
@@ -122,8 +122,8 @@ COPY --from=builder --chown=www-data:www-data /var/www/html /var/www/html
 The `cli` image is invoked directly and never appears in a Dockerfile:
 
 ```shell
-docker run --rm -v "$(pwd)":/var/www/html gustavofreze/php:8.5-cli-1.0.6 composer install
-docker run --rm -v "$(pwd)":/var/www/html gustavofreze/php:8.5-cli-1.0.6 phpcs src/
+docker run --rm -v "$(pwd)":/var/www/html gustavofreze/php:8.5-cli-1.0.7 composer install
+docker run --rm -v "$(pwd)":/var/www/html gustavofreze/php:8.5-cli-1.0.7 phpcs src/
 ```
 
 ### As an FPM service
@@ -131,7 +131,7 @@ docker run --rm -v "$(pwd)":/var/www/html gustavofreze/php:8.5-cli-1.0.6 phpcs s
 ```yaml
 services:
     php:
-        image: gustavofreze/php:8.5-development-1.0.6
+        image: gustavofreze/php:8.5-development-1.0.7
         volumes:
             - ./:/var/www/html
         expose:
@@ -164,16 +164,16 @@ This family carries no accepted risk, so it publishes no [OpenVEX](https://openv
 exemption of any kind. Every scan in the gate runs bare, and what it reports is what the images contain:
 
 ```shell
-trivy image gustavofreze/php:8.5-cli-1.0.6
+trivy image gustavofreze/php:8.5-cli-1.0.7
 ```
 
 It published one until 1.0.3. The docker CLI that `cli` carries was built with a Go toolchain older than the release
 that fixed eight standard library advisories, and none of them had an artifact to pin, so each was an `affected`
-statement, reported rather than silenced. `docker:29.8.1-cli-alpine3.24` is built with Go 1.26.8, as the 29.8.0 that
-1.0.4 moved to was, and that is newer than all eight fixes, so the analysis, the Grype policy and the Trivy policy were
-deleted rather than carried forward. A finding that returns with no artifact to pin brings all three back: the analysis
-at `vex/php.openvex.json`, and beside it the separate decision, in `.grype/php.yaml` and `.trivy/php.yaml`, of whether
-the gate stops on it.
+statement, reported rather than silenced. `docker:29.9.0-cli-alpine3.24` is built with Go 1.26.9, which is newer than
+all eight fixes and than the three net/http and crypto/tls fixes that 1.26.8 still lacked, so the analysis, the Grype
+policy and the Trivy policy were deleted rather than carried forward. A finding that returns with no artifact to pin
+brings all three back: the analysis at `vex/php.openvex.json`, and beside it the separate decision, in `.grype/php.yaml`
+and `.trivy/php.yaml`, of whether the gate stops on it.
 
 The reasoning behind each pin, exemption, and threshold is written in the
 [repository README](https://github.com/gustavofreze/docker-images#self-verification).

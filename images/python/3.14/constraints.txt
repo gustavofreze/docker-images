@@ -12,7 +12,7 @@
 #
 # Regenerate against the pinned base after any version in requirements.txt moves:
 #
-#   docker run --rm python:3.14.7-alpine3.24 sh -c '
+#   docker run --rm python:3.14.8-alpine3.24 sh -c '
 #       apk add --no-cache build-base libffi-dev openssl-dev linux-headers > /dev/null
 #       python3 -m pip install --no-cache-dir --quiet "pip==<V>" "poetry==<V>" "debugpy==<V>"
 #       python3 -m pip freeze --all'

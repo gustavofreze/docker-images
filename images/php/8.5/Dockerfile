@@ -2,7 +2,7 @@
 
 FROM composer:2.10.3 AS composer
 
-FROM docker:29.8.1-cli-alpine3.24 AS docker-cli
+FROM docker:29.9.0-cli-alpine3.24 AS docker-cli
 
 FROM php:8.5.11-fpm-alpine3.24 AS builder
 
@@ -57,7 +57,7 @@ COPY --from=docker-cli /usr/local/bin/docker /usr/local/bin/docker
 
 RUN apk add --no-cache bash curl \
     && apk add --no-cache --virtual .build-deps ${PHPIZE_DEPS} linux-headers \
-    && curl -fsSL -o /tmp/xdebug.tgz "https://pecl.php.net/get/xdebug-${XDEBUG_VERSION}.tgz" \
+    && curl -fsSL --retry 3 -o /tmp/xdebug.tgz "https://pecl.php.net/get/xdebug-${XDEBUG_VERSION}.tgz" \
     && printf '%s  /tmp/xdebug.tgz\n' "${XDEBUG_SHA256}" > /tmp/xdebug.sha256 \
     && sha256sum -c /tmp/xdebug.sha256 \
     && pecl install /tmp/xdebug.tgz \
@@ -65,9 +65,9 @@ RUN apk add --no-cache bash curl \
     && apk del .build-deps \
     && rm -rf /tmp/pear /tmp/xdebug.tgz /tmp/xdebug.sha256
 
-RUN curl -fsSL -o /tmp/phpcs.phar "https://github.com/PHPCSStandards/PHP_CodeSniffer/releases/download/${PHPCS_VERSION}/phpcs.phar" \
-    && curl -fsSL -o /tmp/phpcbf.phar "https://github.com/PHPCSStandards/PHP_CodeSniffer/releases/download/${PHPCS_VERSION}/phpcbf.phar" \
-    && curl -fsSL -o /tmp/phpmd.phar "https://github.com/phpmd/phpmd/releases/download/${PHPMD_VERSION}/phpmd.phar" \
+RUN curl -fsSL --retry 3 -o /tmp/phpcs.phar "https://github.com/PHPCSStandards/PHP_CodeSniffer/releases/download/${PHPCS_VERSION}/phpcs.phar" \
+    && curl -fsSL --retry 3 -o /tmp/phpcbf.phar "https://github.com/PHPCSStandards/PHP_CodeSniffer/releases/download/${PHPCS_VERSION}/phpcbf.phar" \
+    && curl -fsSL --retry 3 -o /tmp/phpmd.phar "https://github.com/phpmd/phpmd/releases/download/${PHPMD_VERSION}/phpmd.phar" \
     && printf '%s  /tmp/phpcs.phar\n%s  /tmp/phpcbf.phar\n%s  /tmp/phpmd.phar\n' \
         "${PHPCS_SHA256}" "${PHPCBF_SHA256}" "${PHPMD_SHA256}" > /tmp/tools.sha256 \
     && sha256sum -c /tmp/tools.sha256 \
@@ -133,7 +133,7 @@ COPY conf/fpm-development.conf /usr/local/etc/php-fpm.d/zz-gustavofreze-developm
 
 RUN apk add --no-cache bash git unzip libzip \
     && apk add --no-cache --virtual .build-deps ${PHPIZE_DEPS} curl linux-headers \
-    && curl -fsSL -o /tmp/xdebug.tgz "https://pecl.php.net/get/xdebug-${XDEBUG_VERSION}.tgz" \
+    && curl -fsSL --retry 3 -o /tmp/xdebug.tgz "https://pecl.php.net/get/xdebug-${XDEBUG_VERSION}.tgz" \
     && printf '%s  /tmp/xdebug.tgz\n' "${XDEBUG_SHA256}" > /tmp/xdebug.sha256 \
     && sha256sum -c /tmp/xdebug.sha256 \
     && pecl install /tmp/xdebug.tgz \

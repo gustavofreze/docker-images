@@ -287,7 +287,7 @@ simplifying an instruction: each item below is load bearing, and the build or th
   mount the host socket itself, which is root-equivalent on the host. Whatever the pin carries that Go
   has already fixed is the family's accepted risk, so a bump to it also rewrites the family VEX and
   both gate policies, or deletes all three when the new toolchain leaves nothing to accept.
-  `docker:29.8.1-cli-alpine3.24` is built with Go 1.26.8, which is why the PHP family now carries none
+  `docker:29.9.0-cli-alpine3.24` is built with Go 1.26.9, which is why the PHP family now carries none
   of the three.
 - **An inherited package is named in `apk add` with `--upgrade`, and only once a scanner reported
   it.** An upstream base ships whatever was current when it was tagged, and that ages in place: both
@@ -300,9 +300,9 @@ simplifying an instruction: each item below is load bearing, and the build or th
   base, which is the php `builder` and `runtime` and the python `builder` and `runtime`, and every
   other target inherits the result through its parent stage. Each family names the packages its own
   base actually ships, so php names `libcrypto3 libssl3 openssl` and python names
-  `libcrypto3 libssl3 libuuid`: adding `openssl` to python would install a binary that base does not
-  carry, and php carries no util-linux package to name. The python `builder` names libuuid alone,
-  because `openssl-dev` already pulls the current openssl in there and nothing pulls libuuid. The set
+  `libcrypto3 libssl3 libuuid zlib`: adding `openssl` to python would install a binary that base does not
+  carry, and php carries no util-linux package to name. The python `builder` names libuuid and zlib
+  alone, because `openssl-dev` already pulls the current openssl in there and nothing pulls either. The set
   is kept to what was reported rather than a blanket `apk upgrade`, which would also drag sqlite-libs
   and apk-tools along, because every upgraded package shadows the base layer's copy and the shadowed
   bytes count against the dive thresholds, per § Lean layers. Naming them in `apk add` is also what
@@ -310,7 +310,8 @@ simplifying an instruction: each item below is load bearing, and the build or th
   repository installs itself, and the monthly rebuild leaves an unnamed package four times longer to
   age than the weekly one did. Widen the set when a scanner reports a package it does not cover: that
   is how libuuid entered it, after seven HIGH findings stopped the Python gate on a copy no rebuild
-  could refresh.
+  could refresh, and how zlib followed, when `python:3.14.8-alpine3.24` still shipped 1.3.2-r0
+  against an index serving 1.3.2-r1.
 - **The gate runs two vulnerability scanners.** Trivy reads the distro security database, Grype
   cross-references upstream advisories and Go module data. Neither is a superset: Grype caught a HIGH
   in the Go stdlib of a vendored binary that Trivy reported clean on the same image. An accepted
