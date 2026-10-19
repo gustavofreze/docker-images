@@ -38,14 +38,14 @@ jobs:
       # The base branch, for the scripts this job runs. Everything it executes comes from what is
       # already merged, never from the pull request, so a branch can never hand a write token
       # something of its own to run.
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ github.event.pull_request.base.sha }}
           path: base
 
       # The pull request branch, for the files this job edits. Dependabot pushes into this
       # repository, so this is not a fork checkout, and nothing in it is executed.
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ github.event.pull_request.head.ref }}
           path: head
@@ -63,6 +63,11 @@ jobs:
         run: |
           set -euo pipefail
 
+          [[ "${HEAD_REF}" == dependabot/* ]] || {
+            echo "::error::Expected a dependabot/* branch, got ${HEAD_REF}."
+            exit 1
+          }
+
           mapfile -t units < <(../base/scripts/changed-build-units.sh "${BASE_SHA}" HEAD)
 
           bumped=0
@@ -79,7 +84,7 @@ jobs:
             exit 0
           }
 
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit --all --message 'build: Bump the VERSION of every build unit this update touches.'
-          git push origin "HEAD:${HEAD_REF}"
+          git -c core.hooksPath=/dev/null config user.name 'github-actions[bot]'
+          git -c core.hooksPath=/dev/null config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git -c core.hooksPath=/dev/null commit --no-verify --all --message 'build: Bump the VERSION of every build unit this update touches.'
+          git -c core.hooksPath=/dev/null push --no-verify origin "HEAD:${HEAD_REF}"
