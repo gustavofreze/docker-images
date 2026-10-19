@@ -3,8 +3,8 @@
   "@id": "https://github.com/gustavofreze/docker-images/vex/python-3.14",
   "author": "Gustavo Freze",
   "role": "Image maintainer",
-  "timestamp": "2026-10-03T16:50:00Z",
-  "version": 5,
+  "timestamp": "2026-10-19T21:00:00Z",
+  "version": 6,
   "statements": [
     {
       "vulnerability": {
@@ -116,24 +116,6 @@
     },
     {
       "vulnerability": {
-        "name": "CVE-2026-15308"
-      },
-      "products": [
-        {
-          "@id": "pkg:oci/python?repository_url=index.docker.io%2Fgustavofreze%2Fpython",
-          "subcomponents": [
-            {
-              "@id": "pkg:generic/python"
-            }
-          ]
-        }
-      ],
-      "status": "affected",
-      "action_statement": "No fix exists on the CPython 3.14 line. The only published fix is 3.15.0, and 3.15 has no stable release, so adopting it would mean shipping a base image built on a pre-release. Verified by scanning python:3.14.7-alpine3.24, the pin this image is built on: it still carries this advisory. Tracked: the pin moves as soon as 3.15.0 ships stable or a backport lands on 3.14.x.",
-      "action_statement_timestamp": "2026-08-12T13:00:00Z"
-    },
-    {
-      "vulnerability": {
         "name": "CVE-2025-15367"
       },
       "products": [
@@ -147,8 +129,8 @@
         }
       ],
       "status": "affected",
-      "action_statement": "No fix exists on the CPython 3.14 line. The only published fix is 3.15.0a6, an alpha, so adopting it would mean shipping a base image built on a pre-release. Verified by scanning python:3.14.7-alpine3.24, the pin this image is built on: it still carries this advisory. Tracked: the pin moves as soon as a stable release carrying the fix ships or a backport lands on 3.14.x.",
-      "action_statement_timestamp": "2026-08-12T13:00:00Z"
+      "action_statement": "No fix exists on the CPython 3.14 line. The only published fix is 3.15.0a6, an alpha, so adopting it would mean shipping a base image built on a pre-release. Verified by scanning python:3.14.8-alpine3.24, the pin this image is built on: it still carries this advisory. Tracked: the pin moves as soon as a stable release carrying the fix ships or a backport lands on 3.14.x.",
+      "action_statement_timestamp": "2026-10-19T21:00:00Z"
     }
   ]
 }

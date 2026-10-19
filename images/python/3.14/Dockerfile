@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM python:3.14.7-alpine3.24 AS builder
+FROM python:3.14.8-alpine3.24 AS builder
 
 LABEL org.opencontainers.image.url="https://github.com/gustavofreze/docker-images" \
       org.opencontainers.image.title="gustavofreze/python-builder" \
@@ -24,7 +24,7 @@ ENV PATH="/app/.venv/bin:${PATH}" \
 
 RUN --mount=type=bind,source=requirements.txt,target=/tmp/requirements.txt \
     --mount=type=bind,source=constraints.txt,target=/tmp/constraints.txt \
-    apk add --no-cache --upgrade libuuid \
+    apk add --no-cache --upgrade libuuid zlib \
     && apk add --no-cache ca-certificates git build-base libffi-dev openssl-dev linux-headers \
     && python3 -m pip install --no-cache-dir \
         --requirement /tmp/requirements.txt --constraint /tmp/constraints.txt \
@@ -48,7 +48,7 @@ USER 0
 
 RUN apk add --no-cache bash curl
 
-FROM python:3.14.7-alpine3.24 AS runtime
+FROM python:3.14.8-alpine3.24 AS runtime
 
 LABEL org.opencontainers.image.url="https://github.com/gustavofreze/docker-images" \
       org.opencontainers.image.title="gustavofreze/python" \
@@ -65,7 +65,7 @@ ENV PATH="/app/.venv/bin:${PATH}" \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONFAULTHANDLER=1
 
-RUN apk add --no-cache --upgrade libcrypto3 libssl3 libuuid \
+RUN apk add --no-cache --upgrade libcrypto3 libssl3 libuuid zlib \
     && apk add --no-cache ca-certificates \
     && python3 -m pip uninstall --yes pip \
     && rm -rf /root/.cache \
