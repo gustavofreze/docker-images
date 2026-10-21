@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM python:3.14.8-alpine3.24 AS builder
+FROM python:3.15.0-alpine3.24 AS builder
 
 LABEL org.opencontainers.image.url="https://github.com/gustavofreze/docker-images" \
       org.opencontainers.image.title="gustavofreze/python-builder" \
@@ -48,7 +48,7 @@ USER 0
 
 RUN apk add --no-cache bash curl
 
-FROM python:3.14.8-alpine3.24 AS runtime
+FROM python:3.15.0-alpine3.24 AS runtime
 
 LABEL org.opencontainers.image.url="https://github.com/gustavofreze/docker-images" \
       org.opencontainers.image.title="gustavofreze/python" \

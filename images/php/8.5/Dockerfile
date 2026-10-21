@@ -2,9 +2,9 @@
 
 FROM composer:2.10.3 AS composer
 
-FROM docker:29.9.0-cli-alpine3.24 AS docker-cli
+FROM docker:29.9.1-cli-alpine3.24 AS docker-cli
 
-FROM php:8.5.11-fpm-alpine3.24 AS builder
+FROM php:8.6.0RC3-fpm-alpine3.24 AS builder
 
 LABEL org.opencontainers.image.url="https://github.com/gustavofreze/docker-images" \
       org.opencontainers.image.title="gustavofreze/php-builder" \
@@ -81,7 +81,7 @@ COPY --chmod=755 bin/phpmd /usr/local/bin/phpmd
 COPY conf/xdebug.ini ${PHP_INI_DIR}/conf.d/zz-gustavofreze-30-xdebug.ini
 COPY conf/cli.ini ${PHP_INI_DIR}/conf.d/zz-gustavofreze-90-cli.ini
 
-FROM php:8.5.11-fpm-alpine3.24 AS runtime
+FROM php:8.6.0RC3-fpm-alpine3.24 AS runtime
 
 LABEL org.opencontainers.image.url="https://github.com/gustavofreze/docker-images" \
       org.opencontainers.image.title="gustavofreze/php" \
