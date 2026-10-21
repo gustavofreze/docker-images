@@ -31,14 +31,14 @@ target also carries a floating alias, and a project may take either form.
 
 | Tag                     | Alias             | Target        | Purpose                                                         |
 |:------------------------|:------------------|:--------------|:----------------------------------------------------------------|
-| `8.5-runtime-1.0.7`     | `8.5-runtime`     | `runtime`     | Production PHP-FPM runtime.                                     |
-| `8.5-development-1.0.7` | `8.5-development` | `development` | Development runtime: runtime plus Xdebug, Composer, bash, git.  |
-| `8.5-builder-1.0.7`     | `8.5-builder`     | `builder`     | Composer toolchain for the builder stage of a production image. |
-| `8.5-cli-1.0.7`         | `8.5-cli`         | `cli`         | Makefile tooling: Composer, Xdebug coverage, linters, docker.   |
+| `8.5-runtime-1.0.8`     | `8.5-runtime`     | `runtime`     | Production PHP-FPM runtime.                                     |
+| `8.5-development-1.0.8` | `8.5-development` | `development` | Development runtime: runtime plus Xdebug, Composer, bash, git.  |
+| `8.5-builder-1.0.8`     | `8.5-builder`     | `builder`     | Composer toolchain for the builder stage of a production image. |
+| `8.5-cli-1.0.8`         | `8.5-cli`         | `cli`         | Makefile tooling: Composer, Xdebug coverage, linters, docker.   |
 
 All four are built from one multi-target
 [Dockerfile](https://github.com/gustavofreze/docker-images/blob/main/images/php/8.5/Dockerfile), pinned to
-`php:8.5.11-fpm-alpine3.24`. The alias tracks the latest rebuild of its target and never crosses an upstream minor, so
+`php:8.5.12-fpm-alpine3.24`. The alias tracks the latest rebuild of its target and never crosses an upstream minor, so
 `8.5-runtime` stays on 8.5. Take the versioned tag for anything that ships, because it is reproducible and moves only
 when you bump it. Take the alias when the monthly security rebuild arriving without a pull request is worth more than
 that, which is usually the case for `cli` and for local development. An alias moves only when the client re-pulls.
@@ -69,7 +69,7 @@ Every image provides, and no consuming Dockerfile re-declares:
   index serves at build time. A consuming Dockerfile does not need to repeat it.
 - Production hardening: `php.ini-production` active (the development template is deleted), `expose_php` and
   `display_errors` off, `allow_url_include` off, arguments stripped from exception traces, strict and transport-locked
-  session cookies, and the process escape functions (`exec`, `shell_exec`, `system`, `proc_open`, `popen`, `passthru`)
+  session cookies, session upload progress disabled, and the process escape functions (`exec`, `shell_exec`, `system`, `proc_open`, `popen`, `passthru`)
   disabled. A project that legitimately shells out re-enables what it needs in its own drop-in.
 - OPcache defaults: production tuning in `runtime` (no timestamp validation, tracing JIT), development tuning in
   `development` (timestamp validation on, JIT off).
@@ -101,19 +101,19 @@ A project consumes the base in two thin files and adds only its own dependencies
 
 ```dockerfile
 # syntax=docker/dockerfile:1
-FROM gustavofreze/php:8.5-development-1.0.7
+FROM gustavofreze/php:8.5-development-1.0.8
 COPY ./ /var/www/html
 ```
 
 ```dockerfile
 # syntax=docker/dockerfile:1
-FROM gustavofreze/php:8.5-builder-1.0.7 AS builder
+FROM gustavofreze/php:8.5-builder-1.0.8 AS builder
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
 COPY ./ ./
 RUN composer dump-autoload --optimize --classmap-authoritative
 
-FROM gustavofreze/php:8.5-runtime-1.0.7
+FROM gustavofreze/php:8.5-runtime-1.0.8
 COPY --from=builder --chown=www-data:www-data /var/www/html /var/www/html
 ```
 
@@ -122,8 +122,8 @@ COPY --from=builder --chown=www-data:www-data /var/www/html /var/www/html
 The `cli` image is invoked directly and never appears in a Dockerfile:
 
 ```shell
-docker run --rm -v "$(pwd)":/var/www/html gustavofreze/php:8.5-cli-1.0.7 composer install
-docker run --rm -v "$(pwd)":/var/www/html gustavofreze/php:8.5-cli-1.0.7 phpcs src/
+docker run --rm -v "$(pwd)":/var/www/html gustavofreze/php:8.5-cli-1.0.8 composer install
+docker run --rm -v "$(pwd)":/var/www/html gustavofreze/php:8.5-cli-1.0.8 phpcs src/
 ```
 
 ### As an FPM service
@@ -131,7 +131,7 @@ docker run --rm -v "$(pwd)":/var/www/html gustavofreze/php:8.5-cli-1.0.7 phpcs s
 ```yaml
 services:
     php:
-        image: gustavofreze/php:8.5-development-1.0.7
+        image: gustavofreze/php:8.5-development-1.0.8
         volumes:
             - ./:/var/www/html
         expose:
@@ -164,7 +164,7 @@ This family carries no accepted risk, so it publishes no [OpenVEX](https://openv
 exemption of any kind. Every scan in the gate runs bare, and what it reports is what the images contain:
 
 ```shell
-trivy image gustavofreze/php:8.5-cli-1.0.7
+trivy image gustavofreze/php:8.5-cli-1.0.8
 ```
 
 It published one until 1.0.3. The docker CLI that `cli` carries was built with a Go toolchain older than the release

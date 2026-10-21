@@ -54,7 +54,7 @@ these is wrong:
 - Non-root runtime: PHP-FPM runs as `www-data`, `WORKDIR /var/www/html` owned by it.
 - Hardening: `php.ini-production` active and the development template deleted, `expose_php` and
   `display_errors` off, `allow_url_include` off, arguments stripped from exception traces, strict and transport-locked
-  session cookies, and the process escape functions disabled.
+  session cookies, session upload progress disabled, and the process escape functions disabled.
 - OPcache defaults: production tuning in `runtime`, development tuning in `development`.
 - A container health check probing the FPM socket, and graceful shutdown through the official
   `STOPSIGNAL SIGQUIT` plus a 10s `process_control_timeout`.

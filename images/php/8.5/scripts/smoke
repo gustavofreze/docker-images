@@ -48,6 +48,7 @@ verify_shared_contract() {
     assert_contains "zip" "${modules}" "zip extension present"
     assert_contains "Zend OPcache" "${modules}" "OPcache enabled"
     assert_contains "expose_php => Off" "$(docker exec "${CONTAINER_NAME}" php -i | grep 'expose_php')" "expose_php disabled"
+    assert_contains "session.upload_progress.enabled => Off" "$(docker exec "${CONTAINER_NAME}" php -i | grep 'session.upload_progress.enabled')" "session upload progress disabled"
     assert_contains "/var/www/html" "$(docker exec "${CONTAINER_NAME}" pwd)" "working directory is the application root"
     assert_contains "process_control_timeout = 10s" "$(docker exec "${CONTAINER_NAME}" php-fpm -tt 2>&1 | grep 'process_control_timeout')" "graceful shutdown drain window set to 10s"
 }
