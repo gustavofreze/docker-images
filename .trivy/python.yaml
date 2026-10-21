@@ -44,7 +44,7 @@
 # reachability argument about pip's internals is not this repository's to make. They are accepted only
 # because no pip release carries the fix. Accepted 2026-10-03 against pip 26.2.1, which vendors urllib3
 # 2.7.0 while the fix for both shipped in 2.8.0. Both retire when a pip release vendoring urllib3 2.8.0
-# or later clears the 7-day cooldown, and they carry the same quarter-long window, counted from that date.
+# or later is released, and they carry the same quarter-long window, counted from that date.
 vulnerabilities:
     - id: GHSA-6v7p-g79w-8964
       statement: "msgpack vendored inside pip, reachable only through the HTTP cache that PIP_NO_CACHE_DIR=1 disables."

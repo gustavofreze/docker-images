@@ -34,10 +34,8 @@ documents the versioning scheme, the publication method, and the usage contract.
 
 ## Dependency policy
 
-NEVER pin an upstream image tag or a tool release published less than 7 days ago. Verify the
-publication date before adopting one. Any change to a Dockerfile or its inputs bumps that build
-unit's `VERSION`, and version tags are immutable. The CI version guard fails a pull request that
-touches a build unit without bumping it.
+Any change to a Dockerfile or its inputs bumps that build unit's `VERSION`, and version tags are
+immutable. The CI version guard fails a pull request that touches a build unit without bumping it.
 
 ## Conventions
 

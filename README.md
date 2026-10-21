@@ -31,9 +31,9 @@ beyond Docker and GNU Make is installed on the host.
 
 The premises the images are held to:
 
-- **Exact upstream pins.** Every `FROM` names a patch version and a distro release, never a moving tag. An upstream tag
-  published less than 7 days ago is never adopted. A package manager run at build time pins its whole resolved tree, not
-  only the packages named on the command line, so the same commit builds the same image on any day and any runner.
+- **Exact upstream pins.** Every `FROM` names a patch version and a distro release, never a moving tag. A package
+  manager run at build time pins its whole resolved tree, not only the packages named on the command line, so the same
+  commit builds the same image on any day and any runner.
 - **Hermetic builds.** No configuration or tool is fetched from the network at build time without a pinned version and a
   verified sha256. Configuration is copied from the build context.
 - **Non-root by default.** Every target an application runs drops to an unprivileged user. A target that keeps root is a
@@ -213,9 +213,6 @@ Two kinds of upstream change move differently:
 - **Patch bump** (PHP 8.5.9 to 8.5.10). The upstream pin and the build unit's `VERSION` both move inside the same
   subdirectory, no new directory.
 
-Upstream pins follow a dependency cooldown: never adopt an upstream tag published less than 7 days ago. This applies to
-the base image and to every pinned tool (Composer, Xdebug, CodeSniffer, Mess Detector, pip, Poetry, debugpy).
-
 <div id='publication'></div>
 
 ### Publication
@@ -319,12 +316,12 @@ until it passes. The workflows pick the new targets up automatically, because th
 
 ### Adding an upstream version
 
-When a family's upstream moves to a new minor, copy the current build unit to a new
-`<upstream-minor>/` beside it (for example `images/php/8.5/` to `images/php/8.6/`), repoint its Dockerfile `FROM` to the
-new upstream pin (honoring the 7-day cooldown), reset its `VERSION` to `1.0.0`, and adjust the configuration the new
-upstream requires. Wire the new version's build, lint, scan, audit, efficiency, smoke, and publish steps into the
-Makefile beside the existing version, list it in the family `README.md`, and run `make review-<family>` until it passes.
-The old version stays untouched, both lines publish in parallel, and each project migrates on its own schedule.
+When a family's upstream moves to a new minor, copy the current build unit to a new `<upstream-minor>/` beside it (for
+example `images/php/8.5/` to `images/php/8.6/`), repoint its Dockerfile `FROM` to the new upstream pin, reset its
+`VERSION` to `1.0.0`, and adjust the configuration the new upstream requires. Wire the new version's build, lint, scan,
+audit, efficiency, smoke, and publish steps into the Makefile beside the existing version, list it in the family
+`README.md`, and run `make review-<family>` until it passes. The old version stays untouched, both lines publish in
+parallel, and each project migrates on its own schedule.
 
 <div id='license'></div>
 
