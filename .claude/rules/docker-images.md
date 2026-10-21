@@ -109,15 +109,10 @@ Two kinds of upstream change move differently:
   new directory appears, and the floating alias tracks the new patch.
 
 To add an upstream version, copy the current subdirectory to a new `<upstream-minor>/` beside it, repoint its Dockerfile
-`FROM` to the new upstream pin (honoring the 7-day cooldown), reset its
-`VERSION` to `1.0.0`, adjust the configuration the new upstream requires, and wire its build, lint, scan, audit,
-efficiency, smoke, and publish steps into the Makefile beside the existing version.
+`FROM` to the new upstream pin, reset its `VERSION` to `1.0.0`, adjust the configuration the new upstream requires, and
+wire its build, lint, scan, audit, efficiency, smoke, and publish steps into the Makefile beside the existing version.
 
 ## Dependency policy
-
-NEVER pin an upstream image tag or a tool release published less than 7 days ago. Verify the publication date before
-adopting one. This covers the base image and every pinned tool alike (Composer, Xdebug, CodeSniffer, Mess Detector, pip,
-Poetry, debugpy).
 
 Alpine package versions are the one deliberate exception to exact pinning: the Alpine repository is rolling and drops
 old versions, so a pinned `apk` version breaks reproducibility instead of improving it. The exact upstream image tag

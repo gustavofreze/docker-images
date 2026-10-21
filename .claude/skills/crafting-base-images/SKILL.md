@@ -29,7 +29,7 @@ Target: a family under `images/<family>/`, from the request.
 ## Rules applied
 
 The `docker-images` rule is normative: the authoring invariants (§ Authoring, § Syntax, § Hermetic
-builds, § Lean layers), the pin and cooldown policy, and § Where the reasoning lives. The
+builds, § Lean layers), the pin policy, and § Where the reasoning lives. The
 `shell-scripts` rule governs every `RUN` body, every baked script, and every `scripts/smoke`. This
 skill sequences the work and gates it, it does not restate the rules.
 
@@ -120,7 +120,7 @@ For a new family or target:
    conditional slot rather than inventing content to fill it.
 3. Write `scripts/smoke` sourcing the shared library and asserting what each target's class promises,
    per § Smoke contract.
-4. Pin the upstream image to an exact tag (patch and distro release) and honor the 7-day cooldown.
+4. Pin the upstream image to an exact tag (patch and distro release).
    Pin every tool the same way, and checksum-verify anything fetched over plain HTTPS. If the family
    runs a package manager at build time, put the tools it installs in that ecosystem's own manifest and
    the tree they resolve to in a lock or constraints file beside it, then bind both in with
