@@ -288,7 +288,7 @@ nothing that deploys, so the alias costs little there. Either way an alias moves
    target that runs a process of its own. It also checks for orphan setuid and setgid bits, credentials in the
    environment, `COPY` over `ADD`, and a clean package cache.
 5. **Efficiency** check of the layers with dive against the thresholds in `.dive-ci` (no unpruned build dependency, no
-   forgotten cache). Five targets are held to `.dive-ci-shadowed` instead, because they replace files that arrived in
+   forgotten cache). Seven targets are held to `.dive-ci-shadowed` instead, because they replace files that arrived in
    the upstream base and dive counts a shadowed file as waste no pruning can reach.
 6. **Smoke** the runtime contract in throwaway containers (non-root, extensions, hardening, OPcache mode, health check,
    pinned tool versions, development tooling present only where it belongs).

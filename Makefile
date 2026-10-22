@@ -161,9 +161,10 @@ DIVE_RUN := docker run --rm -e CI=true \
 # images end up on the upgraded openssl, the php stages and the python runtime through an explicit
 # apk add --upgrade and the python builder through openssl-dev pulling it in, and the python runtime
 # also uninstalls the pip it inherits. Each of those replaces a file that arrived in the upstream
-# base, and dive counts a replaced file as waste. These five are the ones where that shadow is large
-# next to what the target itself adds, measured rather than assumed. php cli, python builder and
-# python cli shadow the same package and still meet the strict floors, so they stay on .dive-ci.
+# base, and dive counts a replaced file as waste. These seven are the ones where that shadow is large
+# next to what the target itself adds, measured rather than assumed. php cli shadows the same package
+# and still meets the strict floors, so it stays on .dive-ci. python builder and python cli joined
+# on 2026-10-21, when pip 26.2.2 replaced the pip the base ships and the shadow passed 20MB.
 # Which thresholds move and why is written in .dive-ci-shadowed, beside the numbers, the same way the
 # CIS exemptions above sit beside the runner they apply to.
 DIVE_RUN_SHADOWED := docker run --rm -e CI=true \
@@ -289,8 +290,8 @@ efficiency-php: ## @verify Check the layer efficiency of the PHP images
 efficiency-python: ## @verify Check the layer efficiency of the Python images
 	@$(DIVE_RUN_SHADOWED) $(PYTHON_RUNTIME_TAG)
 	@$(DIVE_RUN_SHADOWED) $(PYTHON_DEVELOPMENT_TAG)
-	@$(DIVE_RUN) $(PYTHON_BUILDER_TAG)
-	@$(DIVE_RUN) $(PYTHON_CLI_TAG)
+	@$(DIVE_RUN_SHADOWED) $(PYTHON_BUILDER_TAG)
+	@$(DIVE_RUN_SHADOWED) $(PYTHON_CLI_TAG)
 
 .PHONY: smoke
 smoke: smoke-php smoke-python ## @verify Boot throwaway containers and assert the runtime contract

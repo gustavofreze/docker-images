@@ -5,7 +5,7 @@
 # regression (an unpruned build dependency, a forgotten cache) fails while the known waste passes. A
 # change that widens waste past these bounds is a signal to prune the RUN, not to loosen a threshold.
 #
-# Five targets are held to .dive-ci-shadowed instead, because their waste is a base layer this
+# Seven targets are held to .dive-ci-shadowed instead, because their waste is a base layer this
 # repository did not author and cannot prune. The Makefile names which ones, and that file carries
 # the reason. Nothing else is exempt, and this file stays at the numbers above.
 rules:
