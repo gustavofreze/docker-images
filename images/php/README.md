@@ -169,7 +169,7 @@ trivy image gustavofreze/php:8.5-cli-1.0.8
 
 It published one until 1.0.3. The docker CLI that `cli` carries was built with a Go toolchain older than the release
 that fixed eight standard library advisories, and none of them had an artifact to pin, so each was an `affected`
-statement, reported rather than silenced. `docker:29.9.0-cli-alpine3.24` is built with Go 1.26.9, which is newer than
+statement, reported rather than silenced. `docker:29.9.2-cli-alpine3.24` is built with Go 1.26.10, which is newer than
 all eight fixes and than the three net/http and crypto/tls fixes that 1.26.8 still lacked, so the analysis, the Grype
 policy and the Trivy policy were deleted rather than carried forward. A finding that returns with no artifact to pin
 brings all three back: the analysis at `vex/php.openvex.json`, and beside it the separate decision, in `.grype/php.yaml`

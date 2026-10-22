@@ -93,7 +93,7 @@
         }
       ],
       "status": "affected",
-      "action_statement": "pip vendors urllib3 2.7.0 inside its own wheel, and pip 26.2.1 is the newest release, so there is no pip to move to. The urllib3 the image installs is a separate copy, pinned to 2.8.0 by constraints.txt, and it scans clean. Verified inside the image: builder, cli and development each import urllib3 2.8.0 from site-packages and pip._vendor.urllib3 2.7.0, and the runtime uninstalls pip and carries neither copy. The vendored copy serves every pip run in the three targets that ship pip, so it is stated affected rather than argued unreachable. Tracked: the statement is removed once a pip release vendoring urllib3 2.8.0 or later is released.",
+      "action_statement": "pip vendors urllib3 2.7.0 inside its own wheel, and pip 26.2.2 is the newest release, so there is no pip to move to. The urllib3 the image installs is a separate copy, pinned to 2.8.0 by constraints.txt, and it scans clean. Verified inside the image: builder, cli and development each import urllib3 2.8.0 from site-packages and pip._vendor.urllib3 2.7.0, and the runtime uninstalls pip and carries neither copy. The vendored copy serves every pip run in the three targets that ship pip, so it is stated affected rather than argued unreachable. Tracked: the statement is removed once a pip release vendoring urllib3 2.8.0 or later is released.",
       "action_statement_timestamp": "2026-10-03T16:50:00Z"
     },
     {
@@ -111,7 +111,7 @@
         }
       ],
       "status": "affected",
-      "action_statement": "Same as CVE-2026-97687: the urllib3 2.7.0 vendored inside pip 26.2.1, the newest pip release, with the installed urllib3 at 2.8.0 and the runtime carrying neither copy. Removed once a pip release vendoring urllib3 2.8.0 or later is released.",
+      "action_statement": "Same as CVE-2026-97687: the urllib3 2.7.0 vendored inside pip 26.2.2, the newest pip release, with the installed urllib3 at 2.8.0 and the runtime carrying neither copy. Removed once a pip release vendoring urllib3 2.8.0 or later is released.",
       "action_statement_timestamp": "2026-10-03T16:50:00Z"
     },
     {
