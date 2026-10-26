@@ -4,7 +4,7 @@
 # family.
 #
 # The entry is `affected` in the VEX, which is the truthful status: the image is built on CPython
-# 3.14.8 and carries it. Grype cross-references the upstream advisory, which names a fixed release,
+# 3.14.9 and carries it. Grype cross-references the upstream advisory, which names a fixed release,
 # so --only-fixed keeps reporting it, correctly. This file is the separate, explicit decision that
 # the gate does not stop on it. Nothing that is genuinely not affected belongs here: that is
 # expressed in the VEX and suppressed by the scanners on their own.
@@ -15,7 +15,7 @@
 # it, so it retired rather than being carried forward.
 #
 # Grype has no expiry field, unlike the Trivy policy beside it, so this block will not lapse on its
-# own. Accepted 2026-08-12, re-verified 2026-10-19 against 3.14.8, the newest release on the 3.14 line,
+# own. Accepted 2026-08-12, re-verified 2026-10-26 against 3.14.9, the newest release on the 3.14 line,
 # which still carries it. Delete it when 3.15.0 ships stable or a backport lands on 3.14.x.
 ignore:
     - vulnerability: CVE-2025-15367

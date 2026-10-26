@@ -294,9 +294,9 @@ simplifying an instruction: each item below is load bearing, and the build or th
   constraint, so only `--upgrade` moves it. The line sits in each stage built directly on an upstream
   base, which is the php `builder` and `runtime` and the python `builder` and `runtime`, and every
   other target inherits the result through its parent stage. Each family names the packages its own
-  base actually ships, so php names `libcrypto3 libssl3 openssl` and python names
-  `libcrypto3 libssl3 libuuid zlib`: adding `openssl` to python would install a binary that base does not
-  carry, and php carries no util-linux package to name. The python `builder` names libuuid and zlib
+  base actually ships, so php names `brotli-libs curl libcrypto3 libcurl libssl3 openssl` and python
+  names `libcrypto3 libssl3 libuuid zlib`: adding `openssl` or `curl` to python would install a binary
+  that base does not carry, and php carries no util-linux package to name. The python `builder` names libuuid and zlib
   alone, because `openssl-dev` already pulls the current openssl in there and nothing pulls either. The set
   is kept to what was reported rather than a blanket `apk upgrade`, which would also drag sqlite-libs
   and apk-tools along, because every upgraded package shadows the base layer's copy and the shadowed
@@ -305,8 +305,10 @@ simplifying an instruction: each item below is load bearing, and the build or th
   repository installs itself, and the monthly rebuild leaves an unnamed package four times longer to
   age than the weekly one did. Widen the set when a scanner reports a package it does not cover: that
   is how libuuid entered it, after seven HIGH findings stopped the Python gate on a copy no rebuild
-  could refresh, and how zlib followed, when `python:3.14.8-alpine3.24` still shipped 1.3.2-r0
-  against an index serving 1.3.2-r1.
+  could refresh, how zlib followed, when `python:3.14.8-alpine3.24` still shipped 1.3.2-r0
+  against an index serving 1.3.2-r1, and how brotli-libs, curl and libcurl joined the php set, when
+  `php:8.5.12-fpm-alpine3.24` still shipped brotli 1.2.0-r1 and curl 8.22.0-r0 against an index
+  serving 1.2.1-r0 and 8.23.0-r0, with no newer base tag to move to.
 - **The gate runs two vulnerability scanners.** Trivy reads the distro security database, Grype
   cross-references upstream advisories and Go module data. Neither is a superset: Grype caught a HIGH
   in the Go stdlib of a vendored binary that Trivy reported clean on the same image. An accepted
