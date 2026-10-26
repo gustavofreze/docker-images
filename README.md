@@ -65,8 +65,6 @@ docker-images/
 ├── docker-compose.yml              # validator image versions, single source, Dependabot tracked
 ├── vex/                            # per-CVE analysis, published with the images as an attestation
 │   └── python.openvex.json         # one file per family that has one, and php currently has none
-├── .grype/                         # gate policy for Grype: risks with no remediation, per family
-│   └── python.yaml
 ├── .trivy/                         # the same acceptance for Trivy, which names them differently
 │   └── python.yaml
 ├── scripts/
