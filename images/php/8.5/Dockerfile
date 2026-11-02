@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM composer:2.10.3 AS composer
+FROM composer:2.11.0 AS composer
 
 FROM docker:29.9.2-cli-alpine3.24 AS docker-cli
 
