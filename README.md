@@ -292,7 +292,7 @@ shows how a scanner reads it.
 
 ## License
 
-Collection is licensed under [MIT](LICENSE).
+Docker images is licensed under [MIT](LICENSE).
 
 <div id='contributing'></div>
 
