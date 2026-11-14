@@ -38,6 +38,8 @@ the whole tree they resolve to in the constraints file beside it.
 
 ## Image variants
 
+![Image family targets](https://raw.githubusercontent.com/gustavofreze/docker-images/main/docs/diagrams/docker-images-targets.svg)
+
 | Target        | Runs as          | On top of the base                                                     |
 |:--------------|:-----------------|:-----------------------------------------------------------------------|
 | `runtime`     | `app` (uid 1000) | Nothing. pip is uninstalled, and there is no compiler and no Poetry.   |

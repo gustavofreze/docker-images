@@ -36,6 +36,8 @@ All four are built from one multi-target
 
 ## Image variants
 
+![Image family targets](https://raw.githubusercontent.com/gustavofreze/docker-images/main/docs/diagrams/docker-images-targets.svg)
+
 | Target        | Runs as             | Health check | On top of the base                                                   |
 |:--------------|:--------------------|:-------------|:---------------------------------------------------------------------|
 | `runtime`     | `www-data` (uid 82) | FPM socket   | Extensions, production hardening, production OPcache.                |

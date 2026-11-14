@@ -38,14 +38,7 @@ them. It is published as the Docker Hub overview of that repository whenever it 
 Every family ships the same four targets from one multi-target `Dockerfile`. The stage name is the role, and the four
 names are a closed vocabulary.
 
-```mermaid
-flowchart LR
-    builder["builder<br/>compiles the project"] -->|"COPY --from"| image(["Your production image"])
-    runtime["runtime<br/>production base"] -->|"FROM"| image
-    runtime -.->|"FROM"| development["development<br/>runtime plus tooling"]
-    development -->|"FROM"| local(["Your local environment"])
-    cli["cli<br/>one-shot tooling"] -->|"docker run"| commands(["Your Makefile commands"])
-```
+![Image family targets](docs/diagrams/docker-images-targets.svg)
 
 | Target        | What it is                                                                          | Last user |
 |:--------------|:------------------------------------------------------------------------------------|:----------|
@@ -132,11 +125,7 @@ The rules that hold across every family:
 No tag is published before it passes the whole gate. `make review` runs it locally, and the `CI` and `CD` workflows
 run the same command on a native `linux/amd64` runner and a native `linux/arm64` one.
 
-```mermaid
-flowchart LR
-    lint["Lint"] --> build["Build"] --> scan["Scan"] --> audit["Audit"] --> efficiency["Efficiency"] --> smoke["Smoke"]
-    smoke --> publish(["Publish"])
-```
+![Verification gate and publication](docs/diagrams/docker-images-gate.svg)
 
 | Stage      | Tool                 | What stops the gate                                                              |
 |:-----------|:---------------------|:---------------------------------------------------------------------------------|
@@ -151,6 +140,9 @@ Every validator runs in a container, so nothing beyond Docker and GNU Make is in
 version is written once, in `docker-compose.yml`, where Dependabot tracks it. Every suppression and threshold is
 written down with its justification and its date: `.hadolint.yaml`, `.dive-ci`, `.dive-ci-shadowed`, and the CIS
 exemptions beside the audit runner in the `Makefile`.
+
+Sources of the diagrams: [docker-images-targets.html](docs/diagrams/docker-images-targets.html),
+[docker-images-gate.html](docs/diagrams/docker-images-gate.html).
 
 A finding that cannot be fixed locally is disclosed, not hidden. The family publishes an
 [OpenVEX](https://openvex.dev) analysis as a cosign attestation next to every image, and `affected` statements are
@@ -207,6 +199,7 @@ docker-images/
 │   └── python.yaml
 ├── .trivy/                         # the same acceptance for Trivy, which names them differently
 │   └── python.yaml
+├── docs/diagrams/                  # README diagrams: the HTML source and the SVG exported from it
 ├── scripts/
 │   ├── smoke-lib.sh                # shared host-side smoke helpers every family sources
 │   ├── bump-build-unit.sh          # moves a build unit VERSION and every tag and pin its README names

@@ -361,6 +361,34 @@ simplifying an instruction: each item below is load bearing, and the build or th
   cross-references upstream advisories and Go module data. Neither is a superset: Grype caught a HIGH
   in the Go stdlib of a vendored binary that Trivy reported clean on the same image. An accepted
   finding is written once in the family VEX document and read by both, per § Vulnerability acceptance.
+- **The Grype runner sets `GRYPE_DB_CACHE_DIR`.** The Grype image sets no `HOME`, so its default database path
+  resolves to `/.cache/grype/db`, outside the mounted cache volume, and every scan downloaded the whole database
+  again while the volume stayed empty. The variable is what makes the volume a cache.
+- **Dependabot never moves a family base across an upstream minor.** A build unit is one upstream minor, named by
+  its directory, and a new minor is a new sibling directory that a person adds. Left alone, the docker ecosystem
+  moves a pin across that boundary in place: it repointed `images/python/3.14` at `python:3.15.0`, under labels,
+  tags and a smoke suite that all still said 3.14. `dependabot.yml` therefore ignores major and minor updates for
+  the images a family is named after, plus `alpine`. `composer` and `docker` are tools copied into a target, so
+  their minors keep arriving.
+- **The pip ecosystem updates only the tools the requirements files name.** It reads `constraints.txt` as a
+  manifest and floats every line of that resolved tree with no resolver behind the move. Ignoring `poetry-core`
+  alone was not enough: the next run floated findpython to 0.9.0 under a poetry 2.5.1 that requires
+  `findpython<0.9.0`, and the family stopped building. Any line of a resolved tree can do that, which is why the
+  entry is an `allow` list and not an `ignore` list.
+- **The automated bump repins the family README by image name and upstream minor.** Dependabot moves the `FROM`
+  line and never the prose, so `scripts/bump-build-unit.sh` rewrites each backticked pin the README names to the one
+  the Dockerfile uses. Matching on the minor keeps one unit from rewriting the pin of a sibling unit. The cost is
+  that a copied tool crossing its own minor still needs the edit by hand, which is why a family README names in
+  backticks only the pins of its own base images.
+- **A smoke suite reads a pinned upstream version from the Dockerfile.** A copy of that version inside the suite is
+  a second place the same pin lives, so an update Dependabot opens fails on a string rather than on the contract.
+  Composer moving from 2.10.3 to 2.11.0 did exactly that. `pinned_upstream_version` in `scripts/smoke-lib.sh` keeps
+  the assertion at full patch precision and lets it move with the file that owns it.
+- **The Docker Hub overview is published by its own workflow, not by CD.** A family README changes without a build
+  unit changing, and adding it to the CD paths would republish every tag of that family over itself to move a
+  paragraph. A version bump always retags the README, so the workflow also runs on every change that publishes. Its
+  token needs the read, write and delete scope, because Docker Hub accepts a description update from nothing
+  narrower.
 - **`${PHPIZE_DEPS}` is deliberately unquoted.** It is a space-separated package list that must word split, which is why
   SC2086 is relaxed in `.hadolint.yaml`.
 

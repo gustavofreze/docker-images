@@ -36,6 +36,8 @@ exactly those in step with the Dockerfile.>
 
 ## Image variants
 
+![Image family targets](https://raw.githubusercontent.com/gustavofreze/docker-images/main/docs/diagrams/docker-images-targets.svg)
+
 | Target        | Runs as        | On top of the base |
 |:--------------|:---------------|:-------------------|
 | `runtime`     | <user> (uid N) | <one line>         |

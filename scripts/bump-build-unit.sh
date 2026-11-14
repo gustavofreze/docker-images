@@ -46,11 +46,6 @@ retag_readme() {
         "${readme}"
 }
 
-# The family README also names each upstream pin in backticks, and the documentation check fails on one
-# no Dockerfile uses. Dependabot moves the FROM line and never the prose, so without this every base
-# image update it opened stayed red until a person edited the README by hand. A pin is matched by image
-# name and upstream minor, so one unit never rewrites the pin of a sibling unit of the same family. The
-# cost is that a copied tool crossing its own minor, docker 29.9 to 29.10, still needs the edit.
 repin_readme() {
     local readme="${1:?Usage: repin_readme <readme> <dockerfile>}"
     local dockerfile="${2:?Usage: repin_readme <readme> <dockerfile>}"
