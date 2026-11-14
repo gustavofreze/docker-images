@@ -86,8 +86,34 @@ linter, scanner, and auditor runs in a container, at the version `docker-compose
   make review-<family>
   ```
 
-- Make the commits with a subject that is one sentence, with the verb in the imperative, ending with a period.
-    - e.g (Upgrade the inherited openssl and stop reporting accepted risk.)
+- Make the commits using the following convention:
+
+    - **fix**: is used when there are errors that are causing bugs, in an image, a script, or a workflow.
+        - e.g (fix: Correct the health check [...])
+
+    - **doc**: it is used when adding or modifying some documentation in the repository.
+        - e.g (doc: Adds CONTRIBUTING.md [...])
+
+    - **feat**: is used when adding some new functionality from scratch, such as a family, a target, or an upstream
+      version.
+        - e.g (feat: Adds the Rust family [...])
+
+    - **test**: is used when changes of any kind are made to the smoke suites or to the gate, whether it is the
+      addition of new assertions or refactoring of existing ones.
+        - e.g (test: Adds smoke assertion for [...])
+
+    - **style**: is used when changes are made to style and formatting that will not impact what an image ships.
+        - e.g (style: Standardize labels as [...])
+
+    - **refactor**: it is used when a refactoring will not directly impact what an image ships or any rule of the
+      gate.
+        - e.g (refactor: Optimize the dependency layer [...])
+
+    - **build**: is used when a pinned dependency moves, such as an upstream image, a tool, or a validator.
+        - e.g (build: Bump the docker group [...])
+
+  In the description use the imperative verb in the affirmative form, e.g. (**optimizes**, **adds**, **standardizes**,
+  **adjusts**, **changes**).
 
 - Open a pull request from your branch to the **main** branch. In the description, state what was verified and what
   was not. Two checks run, and both must pass:
