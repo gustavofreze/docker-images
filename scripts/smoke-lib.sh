@@ -20,13 +20,8 @@ smoke_fail() {
     echo "[smoke] failed: ${label}" >&2
 }
 
-# Reads the version a build unit pins an upstream image to, from the FROM line that owns it. A copy of
-# that version inside a smoke script is a second place the same pin lives, so every update Dependabot
-# opens fails the suite on a string rather than on the contract, and no automated bump can clear it.
-# Composer moving from 2.10.3 to 2.11.0 did exactly that. Reading the pin keeps the assertion at full
-# patch precision and still lets it move with the file that owns it.
-#
-# Usage: pinned_upstream_version <dockerfile> <image>
+# pinned_upstream_version reads the version a build unit pins an upstream image to, so an assertion
+# follows the FROM line that owns the pin instead of carrying a second copy of it.
 pinned_upstream_version() {
     local dockerfile="${1:?Usage: pinned_upstream_version <dockerfile> <image>}"
     local image="${2:?Usage: pinned_upstream_version <dockerfile> <image>}"

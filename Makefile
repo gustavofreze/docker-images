@@ -96,10 +96,6 @@ trivy_flag   = $(if $(wildcard .trivy/$(1).yaml),--ignorefile /policy.yaml)
 # Two scanners on purpose. Trivy reads the distro security database, Grype cross-references upstream
 # advisories and Go module data, and neither is a superset of the other: Grype caught a HIGH in the
 # Go stdlib of a vendored binary that Trivy reported clean. A single scanner is not coverage.
-#
-# GRYPE_DB_CACHE_DIR is what makes the cache volume a cache. The Grype image sets no HOME, so its
-# default database path resolves to /.cache/grype/db, outside the mount, and every scan downloaded the
-# whole database again while the volume stayed empty.
 GRYPE_RUN = docker run --rm \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -v gustavofreze-grype-cache:/root/.cache/grype \

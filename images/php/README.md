@@ -1,17 +1,8 @@
 # gustavofreze/php
 
 Hardened, reproducible PHP base images. One Dockerfile per upstream version ships four targets: the production `runtime`
-(PHP-FPM), its `development` variant, the `builder` toolchain for a project's production build, and a `cli` tooling
-image a project Makefile invokes. Non-root and hardened where an application runs it, root only where a local tooling
-image needs to write into a bind mount.
-
-* [Quick reference](#quick-reference)
-* [Supported tags](#supported-tags)
-* [Image variants](#image-variants)
-* [What it provides](#what-it-provides)
-* [How to use this image](#how-to-use-this-image)
-* [Verification](#verification)
-* [License](#license)
+(PHP-FPM), its `development` variant, the `builder` for a project's production build, and a `cli` tooling image a
+project Makefile invokes.
 
 ## Quick reference
 
@@ -25,74 +16,76 @@ image needs to write into a bind mount.
 
 ## Supported tags
 
-Every tag is `<upstream-minor>-<target>-<version>`. There is no bare tag and `latest` is forbidden. Version tags are
-immutable, so any change to a Dockerfile or its inputs publishes a new `<version>` instead of rewriting one. Each
-target also carries a floating alias, and a project may take either form.
+| Tag                      | Alias             | Purpose                                                         |
+|:-------------------------|:------------------|:----------------------------------------------------------------|
+| `8.5-runtime-1.0.11`     | `8.5-runtime`     | Production PHP-FPM runtime.                                     |
+| `8.5-development-1.0.11` | `8.5-development` | Local development: runtime plus Xdebug, Composer, bash, git.    |
+| `8.5-builder-1.0.11`     | `8.5-builder`     | Composer toolchain for the builder stage of a production image. |
+| `8.5-cli-1.0.11`         | `8.5-cli`         | Makefile tooling: Composer, Xdebug coverage, linters, docker.   |
 
-| Tag                      | Alias             | Target        | Purpose                                                         |
-|:-------------------------|:------------------|:--------------|:----------------------------------------------------------------|
-| `8.5-runtime-1.0.11`     | `8.5-runtime`     | `runtime`     | Production PHP-FPM runtime.                                     |
-| `8.5-development-1.0.11` | `8.5-development` | `development` | Development runtime: runtime plus Xdebug, Composer, bash, git.  |
-| `8.5-builder-1.0.11`     | `8.5-builder`     | `builder`     | Composer toolchain for the builder stage of a production image. |
-| `8.5-cli-1.0.11`         | `8.5-cli`         | `cli`         | Makefile tooling: Composer, Xdebug coverage, linters, docker.   |
+Every tag is `<upstream-minor>-<target>-<version>`. There is no bare tag and `latest` is forbidden.
+
+- **Versioned tag.** Immutable and reproducible. It moves only when you bump it, so take it for anything that ships.
+- **Alias.** Tracks the latest rebuild of its target, the monthly security rebuild included, and never crosses an
+  upstream minor: `8.5-runtime` stays on 8.5. It moves only when the client re-pulls, which suits `cli` and local
+  development.
 
 All four are built from one multi-target
 [Dockerfile](https://github.com/gustavofreze/docker-images/blob/main/images/php/8.5/Dockerfile), pinned to
-`php:8.5.12-fpm-alpine3.24`. The alias tracks the latest rebuild of its target and never crosses an upstream minor, so
-`8.5-runtime` stays on 8.5. Take the versioned tag for anything that ships, because it is reproducible and moves only
-when you bump it. Take the alias when the monthly security rebuild arriving without a pull request is worth more than
-that, which is usually the case for `cli` and for local development. An alias moves only when the client re-pulls.
+`php:8.5.12-fpm-alpine3.24`. Every tool it adds is pinned there too.
 
 ## Image variants
 
-`development` is subordinate to `runtime`, built `FROM runtime`. It runs on a developer machine and is never deployed.
-`runtime`, `development`, and `builder` all drop to `www-data` (uid 82), and `runtime` and `development` ship a health
-check on the FPM socket. The `builder` is discarded in the multi-stage application build, so the build stage installs
-dependencies non-root and the vendor tree it produces already carries the runtime's ownership. The `cli` is a root-only
-tooling image so it can write into a bind mount owned by the caller.
+![Image family targets](https://raw.githubusercontent.com/gustavofreze/docker-images/main/docs/diagrams/docker-images-targets.svg)
 
-The FPM base is 36MB lighter than the CLI base (it omits the `php-cgi` and `phpdbg` SAPIs, which nothing here uses)
-while still shipping the CLI SAPI that Composer and the linters run on, and building every target on it means the whole
-family shares one base layer instead of pulling two. The one visible consequence is that `builder` and `cli` inherit the
-base's `EXPOSE 9000`. It is metadata only, nothing in either image listens, and their default command is the interactive
-PHP shell.
+| Target        | Runs as             | Health check | On top of the base                                                   |
+|:--------------|:--------------------|:-------------|:---------------------------------------------------------------------|
+| `runtime`     | `www-data` (uid 82) | FPM socket   | Extensions, production hardening, production OPcache.                |
+| `development` | `www-data` (uid 82) | FPM socket   | `runtime` plus Xdebug 3, Composer 2, bash, git, development OPcache. |
+| `builder`     | `www-data` (uid 82) | none         | Composer 2, git, unzip.                                              |
+| `cli`         | root                | none         | `builder` plus Xdebug coverage, bash, curl, linters, the docker CLI. |
+
+- `development` is built `FROM runtime`. It runs on a developer machine and is never deployed.
+- `builder` is discarded in the multi-stage application build. It installs dependencies non-root, so the vendor tree
+  it produces already carries the runtime's ownership.
+- `cli` stays root so it can write into a bind mount owned by the caller.
+- Every target is built on the FPM base, so the family shares one base layer. `builder` and `cli` inherit its
+  `EXPOSE 9000` as metadata only: nothing in either image listens, and their default command is the interactive PHP
+  shell.
 
 ## What it provides
 
 Every image provides, and no consuming Dockerfile re-declares:
 
-- Extensions: the official image set (curl, sodium, mbstring, and the rest) plus `bcmath`, `pdo_mysql`, and `zip`, built
-  with no leftover build dependencies.
-- A non-root runtime: PHP-FPM runs as `www-data`, `WORKDIR /var/www/html` owned by it.
-- A current openssl, curl, and zlib. The upstream base ships whatever `libcrypto3`, `libssl3`, `openssl`, `curl`,
-  `libcurl`, `brotli-libs`, and `zlib` were current when it was tagged, and those age in place between base releases,
-  so every image here upgrades them to what the Alpine index serves at build time. A consuming Dockerfile does not need
-  to repeat it.
-- Production hardening: `php.ini-production` active (the development template is deleted), `expose_php` and
-  `display_errors` off, `allow_url_include` off, arguments stripped from exception traces, strict and transport-locked
-  session cookies, session upload progress disabled, and the process escape functions (`exec`, `shell_exec`, `system`, `proc_open`, `popen`, `passthru`)
+- **Extensions.** The official image set (curl, sodium, mbstring, and the rest) plus `bcmath`, `pdo_mysql`, and `zip`,
+  built with no leftover build dependencies.
+- **A non-root runtime.** PHP-FPM runs as `www-data`, with `WORKDIR /var/www/html` owned by it.
+- **Current system libraries.** openssl, curl, brotli, and zlib are upgraded to what the Alpine index serves at build
+  time, instead of aging in place between base releases.
+- **Production hardening.** `php.ini-production` active, `expose_php`, `display_errors`, and `allow_url_include` off,
+  arguments stripped from exception traces, strict and transport-locked session cookies, session upload progress
+  disabled, and the process escape functions (`exec`, `shell_exec`, `system`, `proc_open`, `popen`, `passthru`)
   disabled. A project that legitimately shells out re-enables what it needs in its own drop-in.
-- OPcache defaults: production tuning in `runtime` (no timestamp validation, tracing JIT), development tuning in
+- **OPcache defaults.** Production tuning in `runtime` (no timestamp validation, tracing JIT), development tuning in
   `development` (timestamp validation on, JIT off).
-- A container health check probing the PHP-FPM socket.
-- Graceful shutdown: the official `STOPSIGNAL SIGQUIT` and exec-form `php-fpm` command are preserved, and
-  `process_control_timeout` is set to 10s, so on stop the master drains in-flight requests before escalating, inside the
-  10s default stop timeout of `docker stop` and Compose.
-- In `development` only: Xdebug 3.5.3, Composer 2.11.0, bash, git, undecorated worker output in `docker logs`, and the
-  process functions re-enabled so Composer can run.
+- **A health check** probing the PHP-FPM socket.
+- **Graceful shutdown.** The official `STOPSIGNAL SIGQUIT` and exec-form `php-fpm` command are preserved, and
+  `process_control_timeout` is 10s, so the master drains in-flight requests inside the default stop timeout of
+  `docker stop` and Compose.
 
-The `builder` image carries Composer 2.11.0, git, and unzip. The `cli` variant adds Xdebug coverage, bash, curl, and the
-pinned linters (CodeSniffer 4.0.4 as `phpcs` and `phpcbf`, Mess Detector 2.15.0 as `phpmd`), each fetched over TLS and
-verified against its published sha256 before it enters a layer.
+`development` also prints undecorated worker output in `docker logs` and re-enables the process functions, so Composer
+can run.
 
-The `cli` variant also ships the docker CLI, so an integration suite that drives throwaway containers can shell out to
-`docker` against a mounted host socket. It is the only image in this repository that carries it: `builder` and `runtime`
-assert its absence. Mounting the socket is root-equivalent on the host, so grant it only to a local tooling invocation
-you control.
+The `cli` image is built to be piped and scripted:
 
-Two details make the `cli` image safe to pipe. Diagnostics go to `stderr`, never `stdout`, so a `--report=json` run is
-parseable. And `phpmd` is a wrapper around the phar that silences the deprecation notices PHPMD 2.15.0 (released in
-2023, still the newest) raises on PHP 8.5, so its report is the only thing on either stream.
+- **Linters.** CodeSniffer as `phpcs` and `phpcbf`, Mess Detector as `phpmd`, each fetched over TLS and verified
+  against its published sha256 before it enters a layer.
+- **Parseable output.** Diagnostics go to `stderr`, never `stdout`, so a `--report=json` run is parseable. `phpmd` is a
+  wrapper that silences the deprecation notices Mess Detector raises on PHP 8.5, so its report is the only thing on
+  either stream.
+- **The docker CLI.** An integration suite that drives throwaway containers can shell out to `docker` against a
+  mounted host socket. No other image in this repository carries it. Mounting the socket is root-equivalent on the
+  host, so grant it only to a local tooling invocation you control.
 
 ## How to use this image
 
@@ -120,10 +113,17 @@ COPY --from=builder --chown=www-data:www-data /var/www/html /var/www/html
 
 ### As a tooling image
 
-The `cli` image is invoked directly and never appears in a Dockerfile:
+The `cli` image is invoked directly and never appears in a Dockerfile.
+
+To install the project dependencies, run:
 
 ```shell
 docker run --rm -v "$(pwd)":/var/www/html gustavofreze/php:8.5-cli-1.0.11 composer install
+```
+
+To check the code style, run:
+
+```shell
 docker run --rm -v "$(pwd)":/var/www/html gustavofreze/php:8.5-cli-1.0.11 phpcs src/
 ```
 
@@ -154,30 +154,29 @@ The rules that hold across every family live in the
 
 ## Verification
 
-No tag is published before it passes the full gate: hadolint and ShellCheck on every Dockerfile and `RUN` body, a Trivy
-and Grype scan for fixable HIGH and CRITICAL vulnerabilities, a Dockle audit against the CIS Docker Benchmark, a dive
-layer-efficiency check, and a smoke suite that boots throwaway containers and asserts the runtime contract (non-root
-user, extensions present, hardening active, OPcache mode, health check, pinned tool versions, and no development tooling
-in the production surface). The gate runs on a native `linux/amd64` runner and a native `linux/arm64` one, so every
-architecture that ships was actually built, scanned, audited, and smoke-tested.
+No tag is published before it passes the full
+[gate](https://github.com/gustavofreze/docker-images#verification-gate), on a native `linux/amd64` runner and a native
+`linux/arm64` one:
+
+| Stage      | Tool                 | What it checks                                 |
+|:-----------|:---------------------|:-----------------------------------------------|
+| Lint       | hadolint, ShellCheck | Every Dockerfile and every `RUN` body.         |
+| Scan       | Trivy and Grype      | Fixable HIGH and CRITICAL vulnerabilities.     |
+| Audit      | Dockle               | The CIS Docker Benchmark.                      |
+| Efficiency | dive                 | Wasted layer space.                            |
+| Smoke      | throwaway containers | The runtime contract, in throwaway containers. |
+
+The smoke suite asserts the non-root user, the extensions, the hardening, the OPcache mode, the health check, the pinned
+tool versions, and the absence of development tooling in the production surface.
 
 This family carries no accepted risk, so it publishes no [OpenVEX](https://openvex.dev) analysis and no scanner
-exemption of any kind. Every scan in the gate runs bare, and what it reports is what the images contain:
+exemption of any kind. Every scan in the gate runs bare, and what it reports is what the images contain.
+
+To scan a tag yourself, run:
 
 ```shell
 trivy image gustavofreze/php:8.5-cli-1.0.11
 ```
-
-It published one until 1.0.3. The docker CLI that `cli` carries was built with a Go toolchain older than the release
-that fixed eight standard library advisories, and none of them had an artifact to pin, so each was an `affected`
-statement, reported rather than silenced. `docker:29.9.2-cli-alpine3.24` is built with Go 1.26.10, which is newer than
-all eight fixes and than the three net/http and crypto/tls fixes that 1.26.8 still lacked, so the analysis, the Grype
-policy and the Trivy policy were deleted rather than carried forward. A finding that returns with no artifact to pin
-brings all three back: the analysis at `vex/php.openvex.json`, and beside it the separate decision, in `.grype/php.yaml`
-and `.trivy/php.yaml`, of whether the gate stops on it.
-
-The reasoning behind each pin, exemption, and threshold is written in the
-[repository README](https://github.com/gustavofreze/docker-images#self-verification).
 
 ## License
 

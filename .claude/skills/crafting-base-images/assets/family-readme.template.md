@@ -2,16 +2,7 @@
 
 <One sentence naming the family and its posture, in the shape "Hardened, reproducible <X> base
 images."> One Dockerfile per upstream version ships <N> targets: <one clause per target, naming its
-role and its purpose>. <One sentence on hardening posture: non-root and hardened where an application
-runs it, root only where a local tooling image needs to write into a bind mount.>
-
-* [Quick reference](#quick-reference)
-* [Supported tags](#supported-tags)
-* [Image variants](#image-variants)
-* [What it provides](#what-it-provides)
-* [How to use this image](#how-to-use-this-image)
-* [Verification](#verification)
-* [License](#license)
+role and its purpose>.
 
 ## Quick reference
 
@@ -21,45 +12,54 @@ runs it, root only where a local tooling image needs to write into a bind mount.
 - **Also published as:** `ghcr.io/gustavofreze/<family>`
 - **Architectures:** `linux/amd64`, `linux/arm64`
 - **Supply chain:** every tag ships a build provenance attestation and an SBOM<, and an OpenVEX
-  analysis when the family publishes one>
+  analysis when the family publishes one, or "and carries no accepted risk" when it scans bare>
 - **License:** [MIT](https://github.com/gustavofreze/docker-images/blob/main/LICENSE)
 
 ## Supported tags
 
-Every tag is `<upstream-minor>-<target>-<version>`. There is no bare tag and `latest` is forbidden.
-Version tags are immutable, so any change to a Dockerfile or its inputs publishes a new `<version>`
-instead of rewriting one. Each target also carries a floating alias, and a project may take either
-form.
+| Tag                    | Alias              | Purpose    |
+|:-----------------------|:-------------------|:-----------|
+| `<minor>-<target>-<V>` | `<minor>-<target>` | <one line> |
 
-| Tag                                | Alias                      | Target   | Purpose    |
-|:-----------------------------------|:---------------------------|:---------|:-----------|
-| `<minor>-<target>-<V>`             | `<minor>-<target>`         | `<target>` | <one line> |
+Every tag is `<upstream-minor>-<target>-<version>`. There is no bare tag and `latest` is forbidden.
+
+- **Versioned tag.** Immutable and reproducible. It moves only when you bump it, so take it for anything that ships.
+- **Alias.** Tracks the latest rebuild of its target, the monthly security rebuild included, and never crosses an
+  upstream minor: `<minor>-runtime` stays on <minor>. It moves only when the client re-pulls, which suits `cli` and
+  local development.
 
 All four are built from one multi-target
 [Dockerfile](https://github.com/gustavofreze/docker-images/blob/main/images/<family>/<minor>/Dockerfile),
-pinned to `<upstream pin>`. The alias tracks the latest rebuild of its target and never crosses an
-upstream minor. Take the versioned tag for anything that ships, because it is reproducible and moves
-only when you bump it. Take the alias when the monthly security rebuild arriving without a pull request
-is worth more than that, which is usually the case for `cli` and for local development.
+pinned to `<upstream pin>`. <One sentence on where every other tool is pinned. Name in backticks only
+the pins of the family's own base images, because the documentation check and the automated bump keep
+exactly those in step with the Dockerfile.>
 
 ## Image variants
 
-<One paragraph: the subordination of `development` to `runtime`, the non-root user each target drops
-to, the named root exception, and what the builder keeps or discards.>
+![Image family targets](https://raw.githubusercontent.com/gustavofreze/docker-images/main/docs/diagrams/docker-images-targets.svg)
 
-<One paragraph on the base-image or health-check posture that is specific to this family: which
-targets ship a `HEALTHCHECK` and which do not and why, the port posture, and any consequence the
-family inherits from the upstream tag it pins.>
+| Target        | Runs as        | On top of the base |
+|:--------------|:---------------|:-------------------|
+| `runtime`     | <user> (uid N) | <one line>         |
+| `development` | <user> (uid N) | <one line>         |
+| `builder`     | <user> (uid N) | <one line>         |
+| `cli`         | root           | <one line>         |
+
+<A family with a target that starts a long-running process adds a "Health check" column.>
+
+- `development` is built `FROM runtime`. It runs on a developer machine and is never deployed.
+- <What the builder keeps or discards, and why.>
+- `cli` stays root so it can write into a bind mount owned by the caller.
+- <The health-check and port posture, and any consequence the family inherits from the upstream tag
+  it pins.>
 
 ## What it provides
 
 Every image provides, and no consuming Dockerfile re-declares:
 
-- <provision>
-- <provision>
-
-<One line on what each non-runtime target adds on top, for example the builder's toolchain contents
-and the cli's tooling.>
+- **<Provision.>** <What it is, in one or two lines. Reasoning a maintainer needs goes in the rule,
+  under "Where the reasoning lives", not here.>
+- **<Provision.>** <...>
 
 ## How to use this image
 
@@ -79,10 +79,12 @@ A project consumes the base in two thin files and adds only its own dependencies
 
 ### As a tooling image
 
-The `cli` image is invoked directly and never appears in a Dockerfile:
+The `cli` image is invoked directly and never appears in a Dockerfile.
+
+<One block per command, each under a one-line lead in the shape "To <do what>, run:".>
 
 ```shell
-<one or two representative invocations over a bind mount>
+<one representative invocation over a bind mount>
 ```
 
 <### As a service, only when a target of this family starts a long-running process of its own. A
@@ -93,17 +95,22 @@ The rules that hold across every family live in the
 
 ## Verification
 
-No tag is published before it passes the full gate: hadolint and ShellCheck on every Dockerfile and
-`RUN` body, a Trivy and Grype scan for fixable HIGH and CRITICAL vulnerabilities, a Dockle audit
-against the CIS Docker Benchmark, a dive layer-efficiency check, and a smoke suite that boots
-throwaway containers and asserts the runtime contract (<the family's own assertions, named>). The gate
-runs on a native `linux/amd64` runner and a native `linux/arm64` one, so every architecture that ships
-was actually built, scanned, audited, and smoke-tested.
+No tag is published before it passes the full
+[gate](https://github.com/gustavofreze/docker-images#verification-gate), on a native `linux/amd64` runner and a native
+`linux/arm64` one:
 
-<Only when the family publishes a VEX: one paragraph stating that every tag carries an OpenVEX
-analysis as a cosign attestation, a shell block showing a scanner reading it, and the note that
-`affected` statements are reported rather than silenced. A family with no VEX points at the repository
-README instead.>
+| Stage      | Tool                 | What it checks                             |
+|:-----------|:---------------------|:-------------------------------------------|
+| Lint       | hadolint, ShellCheck | Every Dockerfile and every `RUN` body.     |
+| Scan       | Trivy and Grype      | Fixable HIGH and CRITICAL vulnerabilities. |
+| Audit      | Dockle               | The CIS Docker Benchmark.                  |
+| Efficiency | dive                 | Wasted layer space.                        |
+| Smoke      | throwaway containers | <the family's own assertions, named>       |
+
+<When the family publishes a VEX: one paragraph stating that every tag carries an OpenVEX analysis as
+a cosign attestation, a shell block showing a scanner reading it, and the note that `affected`
+statements are reported rather than silenced. When it does not: one paragraph stating that the family
+carries no accepted risk and scans bare, and a shell block scanning one tag.>
 
 ## License
 

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verification gate and publication</title>
+  <!-- Drawn with the diagram-design skill, Skedli palette (white canvas variant). Export the README SVG from
+       skedli-context with python3 helpers/diagram_export.py <this file>, which runs the skill's export_svg.py
+       and outlines every text as a path, so the image depends on no font. -->
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --color-ink: #011f51; --color-muted: #3f4a66;
+      --font-sans: 'Nunito', 'Nunito Variable', system-ui, sans-serif;
+      --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    body { font-family: var(--font-sans); background: #ffffff; color: var(--color-ink); min-height: 100vh;
+      display: flex; align-items: center; justify-content: center; padding: 3rem 2rem; }
+    .frame { max-width: 1200px; width: 100%; }
+    .diagram-container { width: 100%; overflow-x: auto; }
+    .eyebrow { font-size: 0.8rem; font-weight: 600; color: var(--color-muted); margin-bottom: 0.25rem; }
+    h1 { font-size: 1.6rem; font-weight: 700; color: var(--color-ink); margin-bottom: 1.5rem; }
+    svg { width: 100%; min-width: 1104px; display: block; }
+    @media print {
+      .diagram-container { overflow-x: visible; }
+      svg { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">docker-images · gate</p>
+    <h1>Verification gate and publication</h1>
+    <div class="diagram-container">
+      <svg viewBox="0 0 1104 644" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="docker-images-gate-title docker-images-gate-desc">
+        <title id="docker-images-gate-title">Verification gate and publication</title>
+        <desc id="docker-images-gate-desc">How a change reaches the registries: a pull request runs the version guard and the gate in CI, the merge runs the gate again in CD and publishes the versioned tag and its alias to Docker Hub and GitHub Packages in one step, with their attestations, and a monthly rebuild repoints the aliases.</desc>
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,1 L7,4 L1,7" fill="none" stroke="#2e58d6" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></marker>
+          <marker id="arrow-sync" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,1 L7,4 L1,7" fill="none" stroke="#2e58d6" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></marker>
+          <marker id="arrow-async" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,1 L7,4 L1,7" fill="none" stroke="#0b5573" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></marker>
+        </defs>
+
+        <rect width="100%" height="100%" rx="12" fill="#ffffff"/>
+
+        <!-- Captions -->
+        <text x="40" y="44" fill="#3f4a66" font-size="11" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif" font-weight="700">Triggered by</text>
+        <text x="864" y="44" fill="#3f4a66" font-size="11" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif" font-weight="700">Published to</text>
+
+        <!-- Triggers into the gate: pull request (1), merge (2), scheduled rebuild -->
+        <line x1="232" y1="104" x2="416" y2="104" stroke="#2e58d6" stroke-width="1.2" marker-end="url(#arrow-sync)"/>
+        <line x1="232" y1="216" x2="416" y2="216" stroke="#2e58d6" stroke-width="1.2" marker-end="url(#arrow-sync)"/>
+        <line x1="232" y1="328" x2="416" y2="328" stroke="#0b5573" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrow-async)"/>
+
+        <!-- Publication (3), one step that forks to both registries, and attestations (4) -->
+        <line x1="720" y1="160" x2="824" y2="160" stroke="#2e58d6" stroke-width="1.2"/>
+        <path d="M824,160 Q832,160 832,152 L832,112 Q832,104 840,104 L864,104" fill="none" stroke="#2e58d6" stroke-width="1.2" marker-end="url(#arrow-sync)"/>
+        <path d="M824,160 Q832,160 832,168 L832,208 Q832,216 840,216 L864,216" fill="none" stroke="#2e58d6" stroke-width="1.2" marker-end="url(#arrow-sync)"/>
+        <line x1="568" y1="412" x2="568" y2="468" stroke="#2e58d6" stroke-width="1.2" marker-end="url(#arrow-sync)"/>
+
+        <!-- Triggers -->
+        <rect x="40" y="64" width="192" height="80" rx="12" fill="#e7ebf3"/>
+        <g transform="translate(54 94.0) scale(0.833333)" fill="none" stroke="#3f4a66" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 19a5 5 0 0 1-5-5v8" /> <path d="M9 20H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H20a2 2 0 0 1 2 2v5" /> <circle cx="13" cy="12" r="2" /> <circle cx="20" cy="19" r="2" /></g>
+        <text x="88" y="92.0" fill="#011f51" font-size="13" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif" font-weight="700">Pull request</text>
+        <text x="88" y="110.0" fill="#3f4a66" font-size="11" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif">CI: version guard,</text>
+        <text x="88" y="125.0" fill="#3f4a66" font-size="11" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif">then the gate</text>
+        <rect x="40" y="176" width="192" height="80" rx="12" fill="#e7ebf3"/>
+        <g transform="translate(54 206.0) scale(0.833333)" fill="none" stroke="#3f4a66" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m10.586 5.414-5.172 5.172" /> <path d="m18.586 13.414-5.172 5.172" /> <path d="M6 12h12" /> <circle cx="12" cy="20" r="2" /> <circle cx="12" cy="4" r="2" /> <circle cx="20" cy="12" r="2" /> <circle cx="4" cy="12" r="2" /></g>
+        <text x="88" y="204.0" fill="#011f51" font-size="13" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif" font-weight="700">Merge to main</text>
+        <text x="88" y="222.0" fill="#3f4a66" font-size="11" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif">CD: the gate again,</text>
+        <text x="88" y="237.0" fill="#3f4a66" font-size="11" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif">then publication</text>
+        <rect x="40" y="288" width="192" height="80" rx="12" fill="#e7ebf3"/>
+        <g transform="translate(54 318.0) scale(0.833333)" fill="none" stroke="#3f4a66" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 14v2.2l1.6 1" /> <path d="M16 2v3" /> <path d="M21 7.338V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2h2.338" /> <path d="M3 9h5.859" /> <path d="M8 2v3" /> <circle cx="16" cy="16" r="6" /></g>
+        <text x="88" y="316.0" fill="#011f51" font-size="13" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif" font-weight="700">Monthly rebuild</text>
+        <text x="88" y="334.0" fill="#3f4a66" font-size="11" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif">Aliases repointed,</text>
+        <text x="88" y="349.0" fill="#3f4a66" font-size="11" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif">published tags scanned</text>
+
+        <!-- Verification gate (focal, dotted boundary) -->
+        <rect x="416" y="64" width="304" height="348" rx="12" fill="#e4ecff" stroke="#2e58d6" stroke-width="1.2" stroke-dasharray="1.5,3.5"/>
+        <g transform="translate(440 84) scale(0.916667)" fill="none" stroke="#2e58d6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /> <path d="m9 12 2 2 4-4" /></g>
+        <text x="472" y="101" fill="#011f51" font-size="16" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif" font-weight="700">Verification gate</text>
+        <text x="440" y="124" fill="#3f4a66" font-size="11" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif">make review, six stages on amd64 and arm64</text>
+        <rect x="432" y="148" width="136" height="72" rx="10" fill="#ffffff"/>
+        <text x="500.0" y="180.0" fill="#011f51" font-size="12.5" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif" font-weight="700" text-anchor="middle">Lint</text>
+        <text x="500.0" y="197.0" fill="#3f4a66" font-size="10.5" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif" text-anchor="middle">hadolint, ShellCheck</text>
+        <rect x="576" y="148" width="136" height="72" rx="10" fill="#ffffff"/>
+        <text x="644.0" y="180.0" fill="#011f51" font-size="12.5" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif" font-weight="700" text-anchor="middle">Build</text>
+        <text x="644.0" y="197.0" fill="#3f4a66" font-size="10.5" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif" text-anchor="middle">Four targets</text>
+        <rect x="432" y="236" width="136" height="72" rx="10" fill="#ffffff"/>
+        <text x="500.0" y="268.0" fill="#011f51" font-size="12.5" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif" font-weight="700" text-anchor="middle">Scan</text>
+        <text x="500.0" y="285.0" fill="#3f4a66" font-size="10.5" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif" text-anchor="middle">Trivy and Grype</text>
+        <rect x="576" y="236" width="136" height="72" rx="10" fill="#ffffff"/>
+        <text x="644.0" y="268.0" fill="#011f51" font-size="12.5" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif" font-weight="700" text-anchor="middle">Audit</text>
+        <text x="644.0" y="285.0" fill="#3f4a66" font-size="10.5" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif" text-anchor="middle">Dockle, CIS benchmark</text>
+        <rect x="432" y="324" width="136" height="72" rx="10" fill="#ffffff"/>
+        <text x="500.0" y="356.0" fill="#011f51" font-size="12.5" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif" font-weight="700" text-anchor="middle">Efficiency</text>
+        <text x="500.0" y="373.0" fill="#3f4a66" font-size="10.5" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif" text-anchor="middle">dive, layer waste</text>
+        <rect x="576" y="324" width="136" height="72" rx="10" fill="#ffffff"/>
+        <text x="644.0" y="356.0" fill="#011f51" font-size="12.5" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif" font-weight="700" text-anchor="middle">Smoke</text>
+        <text x="644.0" y="373.0" fill="#3f4a66" font-size="10.5" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif" text-anchor="middle">Throwaway containers</text>
+
+        <!-- Registries -->
+        <rect x="864" y="64" width="200" height="80" rx="12" fill="#e7ebf3"/>
+        <g transform="translate(878 94.0) scale(0.833333)" fill="none" stroke="#3f4a66" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 7.7c0-.6-.4-1.2-.8-1.5l-6.3-3.9a1.72 1.72 0 0 0-1.7 0l-10.3 6c-.5.2-.9.8-.9 1.4v6.6c0 .5.4 1.2.8 1.5l6.3 3.9a1.72 1.72 0 0 0 1.7 0l10.3-6c.5-.3.9-1 .9-1.5Z" /> <path d="M10 21.9V14L2.1 9.1" /> <path d="m10 14 11.9-6.9" /> <path d="M14 19.8v-8.1" /> <path d="M18 17.5V9.4" /></g>
+        <text x="912" y="92.0" fill="#011f51" font-size="13" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif" font-weight="700">Docker Hub</text>
+        <text x="912" y="110.0" fill="#3f4a66" font-size="11" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif">gustavofreze/php,</text>
+        <text x="912" y="125.0" fill="#3f4a66" font-size="11" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif">python and rust</text>
+        <rect x="864" y="176" width="200" height="80" rx="12" fill="#e7ebf3"/>
+        <g transform="translate(878 206.0) scale(0.833333)" fill="none" stroke="#3f4a66" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /> <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" /> <path d="M2 12h20" /></g>
+        <text x="912" y="204.0" fill="#011f51" font-size="13" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif" font-weight="700">GitHub Packages</text>
+        <text x="912" y="222.0" fill="#3f4a66" font-size="11" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif">ghcr.io/gustavofreze,</text>
+        <text x="912" y="237.0" fill="#3f4a66" font-size="11" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif">the same tags</text>
+
+        <!-- Evidence -->
+        <rect x="472" y="468" width="192" height="80" rx="12" fill="#ffffff" stroke="#c4cbdc" stroke-width="1"/>
+        <g transform="translate(486 498.0) scale(0.833333)" fill="none" stroke="#3f4a66" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z" /> <circle cx="16.5" cy="7.5" r=".5" fill="currentColor" /></g>
+        <text x="520" y="496.0" fill="#011f51" font-size="13" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif" font-weight="700">Attestations</text>
+        <text x="520" y="514.0" fill="#3f4a66" font-size="11" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif">Provenance, SBOM,</text>
+        <text x="520" y="529.0" fill="#3f4a66" font-size="11" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif">OpenVEX analysis</text>
+
+        <!-- Step labels, next to their badges -->
+        <rect x="250" y="87" width="61" height="14" rx="3" fill="#ffffff"/>
+        <text x="254" y="98" fill="#3f4a66" font-size="10" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif" font-weight="600">Runs in CI</text>
+        <rect x="250" y="199" width="61" height="14" rx="3" fill="#ffffff"/>
+        <text x="254" y="210" fill="#3f4a66" font-size="10" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif" font-weight="600">Runs in CD</text>
+        <rect x="240" y="311" width="103" height="14" rx="3" fill="#ffffff"/>
+        <text x="244" y="322" fill="#3f4a66" font-size="10" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif" font-weight="600">First of the month</text>
+        <rect x="748" y="143" width="76" height="14" rx="3" fill="#ffffff"/>
+        <text x="752" y="154" fill="#3f4a66" font-size="10" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif" font-weight="600">Tag and alias</text>
+        <rect x="580" y="433" width="119" height="14" rx="3" fill="#ffffff"/>
+        <text x="584" y="444" fill="#3f4a66" font-size="10" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif" font-weight="600">Attached to every tag</text>
+
+        <!-- Step badges -->
+        <circle cx="232" cy="104" r="9" fill="#2e58d6"/>
+        <text x="232" y="107.8" fill="#ffffff" font-size="10.5" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif" font-weight="700" text-anchor="middle">1</text>
+        <circle cx="232" cy="216" r="9" fill="#2e58d6"/>
+        <text x="232" y="219.8" fill="#ffffff" font-size="10.5" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif" font-weight="700" text-anchor="middle">2</text>
+        <circle cx="736" cy="160" r="9" fill="#2e58d6"/>
+        <text x="736" y="163.8" fill="#ffffff" font-size="10.5" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif" font-weight="700" text-anchor="middle">3</text>
+        <circle cx="568" cy="440" r="9" fill="#2e58d6"/>
+        <text x="568" y="443.8" fill="#ffffff" font-size="10.5" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif" font-weight="700" text-anchor="middle">4</text>
+
+        <!-- Legend, one row -->
+        <line x1="40" y1="588" x2="1064" y2="588" stroke="#dbe0ec" stroke-width="1"/>
+        <rect x="40" y="603" width="18" height="12" rx="4" fill="#e4ecff" stroke="#2e58d6" stroke-width="1" stroke-dasharray="1.5,2.5"/>
+        <text x="66" y="612" fill="#3f4a66" font-size="10.5" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif">Verification gate</text>
+        <rect x="185" y="603" width="18" height="12" rx="4" fill="#e7ebf3"/>
+        <text x="211" y="612" fill="#3f4a66" font-size="10.5" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif">Trigger or registry</text>
+        <rect x="341" y="603" width="18" height="12" rx="4" fill="#ffffff" stroke="#c4cbdc" stroke-width="1"/>
+        <text x="367" y="612" fill="#3f4a66" font-size="10.5" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif">Evidence</text>
+        <line x1="438" y1="609" x2="462" y2="609" stroke="#2e58d6" stroke-width="1.2" marker-end="url(#arrow-sync)"/>
+        <text x="470" y="612" fill="#3f4a66" font-size="10.5" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif">Step</text>
+        <line x1="519" y1="609" x2="543" y2="609" stroke="#0b5573" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrow-async)"/>
+        <text x="551" y="612" fill="#3f4a66" font-size="10.5" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif">Scheduled</text>
+        <circle cx="636" cy="608" r="8" fill="#2e58d6"/>
+        <text x="653" y="612" fill="#3f4a66" font-size="10.5" font-family="'Nunito', 'Nunito Variable', system-ui, sans-serif">Order of the steps</text>
+      </svg>
+    </div>
+  </div>
+</body>
+</html>
