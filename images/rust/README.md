@@ -103,10 +103,17 @@ its shared object in the runtime stage, both added by the project.
 
 ### As a tooling image
 
-The `cli` image is invoked directly and never appears in a Dockerfile:
+The `cli` image is invoked directly and never appears in a Dockerfile.
+
+To lint the code, run:
 
 ```shell
 docker run --rm -v "$(pwd)":/app gustavofreze/rust:1.100-cli-1.0.0 cargo clippy --all-targets -- -D warnings
+```
+
+To check the formatting, run:
+
+```shell
 docker run --rm -v "$(pwd)":/app gustavofreze/rust:1.100-cli-1.0.0 cargo fmt --check
 ```
 
@@ -131,7 +138,9 @@ The smoke suite asserts the non-root user, the pinned toolchain version, linters
 a toolchain in the production surface, and a release binary compiled in the builder running in the runtime.
 
 This family carries no accepted risk, so it publishes no [OpenVEX](https://openvex.dev) analysis and no scanner
-exemption of any kind. Every scan in the gate runs bare, and what it reports is what the images contain:
+exemption of any kind. Every scan in the gate runs bare, and what it reports is what the images contain.
+
+To scan a tag yourself, run:
 
 ```shell
 trivy image gustavofreze/rust:1.100-runtime-1.0.0

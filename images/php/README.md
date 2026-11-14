@@ -113,10 +113,17 @@ COPY --from=builder --chown=www-data:www-data /var/www/html /var/www/html
 
 ### As a tooling image
 
-The `cli` image is invoked directly and never appears in a Dockerfile:
+The `cli` image is invoked directly and never appears in a Dockerfile.
+
+To install the project dependencies, run:
 
 ```shell
 docker run --rm -v "$(pwd)":/var/www/html gustavofreze/php:8.5-cli-1.0.11 composer install
+```
+
+To check the code style, run:
+
+```shell
 docker run --rm -v "$(pwd)":/var/www/html gustavofreze/php:8.5-cli-1.0.11 phpcs src/
 ```
 
@@ -163,7 +170,9 @@ The smoke suite asserts the non-root user, the extensions, the hardening, the OP
 tool versions, and the absence of development tooling in the production surface.
 
 This family carries no accepted risk, so it publishes no [OpenVEX](https://openvex.dev) analysis and no scanner
-exemption of any kind. Every scan in the gate runs bare, and what it reports is what the images contain:
+exemption of any kind. Every scan in the gate runs bare, and what it reports is what the images contain.
+
+To scan a tag yourself, run:
 
 ```shell
 trivy image gustavofreze/php:8.5-cli-1.0.11

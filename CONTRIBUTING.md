@@ -1,66 +1,115 @@
 # Contributing
 
-Thank you for helping keep these images lean, reproducible, and safe. This document is the maintainer's side of the
-repository: how a change gets in, what the gate expects, and how a tag reaches the registries. What the images are and
-how to consume them is in the [README](README.md) and in each family README.
+* [Overview](#overview)
+* [How can I contribute?](#contributing)
+    - [Reporting bugs](#reporting-bugs)
+    - [Suggesting improvements](#suggesting-improvements)
+    - [Developing](#developing)
+* [How the repository works](#how-the-repository-works)
+    - [Ground rules](#ground-rules)
+    - [Versioning](#versioning)
+    - [Changing an image](#changing-an-image)
+    - [Adding an upstream version](#adding-an-upstream-version)
+    - [Adding a family](#adding-a-family)
+    - [Handling a vulnerability](#handling-a-vulnerability)
+    - [Publication](#publication)
 
-* [Requirements](#requirements)
-* [Workflow](#workflow)
-* [Ground rules](#ground-rules)
-* [Versioning](#versioning)
-* [Changing an image](#changing-an-image)
-* [Adding an upstream version](#adding-an-upstream-version)
-* [Adding a family](#adding-a-family)
-* [Handling a vulnerability](#handling-a-vulnerability)
-* [Publication](#publication)
-* [Commits and pull requests](#commits-and-pull-requests)
-* [Reporting a security issue](#reporting-a-security-issue)
-* [License](#license)
+<div id='overview'></div>
 
-<div id='requirements'></div>
+## Overview
 
-## Requirements
+Thank you for investing your time in contributing to the project.
 
-Docker with BuildKit and GNU Make. Nothing else is installed on the host: every linter, scanner, and auditor runs in a
-container, at the version `docker-compose.yml` names.
+These are the main guidelines, use your common sense, and feel free to propose changes to this document in a pull
+request.
 
-<div id='workflow'></div>
+<div id='contributing'></div>
 
-## Workflow
+## How can I contribute?
 
-1. Fork the repository, or branch from `main` if you have write access.
-2. Make the change inside one build unit, `images/<family>/<upstream-minor>/`.
-3. Bump that build unit, see [Changing an image](#changing-an-image).
-4. Run the gate for the family you touched until it passes:
+This section guides you through possible ways to contribute.
 
-   ```bash
-   make review-<family>
-   ```
+<div id='reporting-bugs'></div>
 
-5. Open a pull request against `main`.
+### Reporting bugs
 
-| Command                | What it does                                                         |
-|:-----------------------|:---------------------------------------------------------------------|
-| `make build-<family>`  | Build the four targets of one family. No registry is involved.       |
-| `make lint`            | hadolint, ShellCheck, and the family README check, for every family. |
-| `make review-<family>` | The full gate for one family, from lint to smoke.                    |
-| `make review`          | The full gate for every family. `make verify` is an alias.           |
-| `make discover`        | Every build unit and the tags it publishes.                          |
-| `make help`            | Every other command.                                                 |
+Bugs are tracked as [issues](https://github.com/gustavofreze/docker-images/issues) on GitHub. Create an issue and
+provide the following information:
 
-A pull request runs two checks, and both must pass:
+- Use a clear and descriptive title to identify the problem.
+- Describe the exact steps that reproduce the problem in as much detail as possible. When listing the steps, don't say
+  just what you did, but explain how you did it.
+- Tell which image tag you are using, and on which architecture.
 
-| Check         | What it asserts                                                                                    |
-|:--------------|:---------------------------------------------------------------------------------------------------|
-| Version guard | Every build unit the pull request touches bumped its `VERSION`.                                    |
-| Review        | `make review-<family>` passes for every family, on native `linux/amd64` and `linux/arm64` runners. |
+A CVE in an upstream package that a scanner already reports is a regular issue: name the image tag and the identifier.
+A vulnerability in this repository, or in how an image is built, is not. Report it privately through
+[GitHub security advisories](https://github.com/gustavofreze/docker-images/security/advisories/new).
+
+<div id='suggesting-improvements'></div>
+
+### Suggesting improvements
+
+Improvement suggestions are tracked as [issues](https://github.com/gustavofreze/docker-images/issues) on GitHub.
+Create an issue and provide the following information:
+
+- Use a clear and descriptive title to identify the suggestion.
+- Describe the current behavior, and explain what behavior you expected to see and why.
+- Explain why this enhancement would be useful for most users.
+- Tell which image tag you are using.
+
+<div id='developing'></div>
+
+### Developing
+
+To start development, you will need Docker with BuildKit and GNU Make. Nothing else is installed on the host: every
+linter, scanner, and auditor runs in a container, at the version `docker-compose.yml` names. Then follow these steps:
+
+- Fork the repository.
+
+- Make a clone of the repository from your fork.
+
+- Create a new branch from the **main** branch. To give greater readability, use one of the prefixes, according to the
+  type of change, **fix**/xpto, **feature**/xpto, **docs**/xpto, **chore**/xpto.
+
+- Make the change inside one build unit, `images/<family>/<upstream-minor>/`, following the
+  [ground rules](#ground-rules).
+
+- Bump the build unit you changed. It moves the `VERSION` and every tag and pin the family README names:
+
+  ```bash
+  ./scripts/bump-build-unit.sh images/<family>/<upstream-minor>
+  ```
+
+- Run the full gate for the family you changed, until it passes:
+
+  ```bash
+  make review-<family>
+  ```
+
+- Make the commits with a subject that is one sentence, with the verb in the imperative, ending with a period.
+    - e.g (Upgrade the inherited openssl and stop reporting accepted risk.)
+
+- Open a pull request from your branch to the **main** branch. In the description, state what was verified and what
+  was not. Two checks run, and both must pass:
+
+    - **Version guard**: every build unit the pull request touches bumped its `VERSION`.
+    - **Review**: `make review-<family>` passes for every family, on native `linux/amd64` and `linux/arm64` runners.
+
+- With the code review approved, the pull request is squash-merged into the **main** branch, and the merge is what
+  publishes the images. There is no release branch and no tag to create.
 
 A scanner database moves on its own, so the gate can turn red on a tree nobody touched. When that happens the fix
 belongs in the same pull request, see [Handling a vulnerability](#handling-a-vulnerability).
 
+<div id='how-the-repository-works'></div>
+
+## How the repository works
+
+What a change has to respect, and what happens to it after the merge.
+
 <div id='ground-rules'></div>
 
-## Ground rules
+### Ground rules
 
 The normative text is [`.claude/rules/docker-images.md`](.claude/rules/docker-images.md) for an image and
 [`.claude/rules/shell-scripts.md`](.claude/rules/shell-scripts.md) for every Bash file and every `RUN` body. The lint
@@ -83,7 +132,7 @@ stage enforces both. The short version:
 
 <div id='versioning'></div>
 
-## Versioning
+### Versioning
 
 Each family keeps one build unit per upstream minor, under an `<upstream-minor>/` subdirectory (`images/php/8.5/`,
 `images/python/3.14/`, `images/rust/1.100/`). A build unit is self-contained: its own `Dockerfile`, `VERSION`,
@@ -103,18 +152,12 @@ inside the old subdirectory.
 
 <div id='changing-an-image'></div>
 
-## Changing an image
+### Changing an image
 
-Version tags are immutable, so any change to a Dockerfile or its inputs publishes a new version. One command moves
-everything a bump touches:
-
-```bash
-./scripts/bump-build-unit.sh images/<family>/<upstream-minor>
-```
-
-It advances the patch number in `VERSION`, retags every full tag the family README names, and repoints the upstream
-pins the README names to the ones the Dockerfile uses. The lint stage compares the README against the build unit, so a
-bump made by hand that misses one of them fails there.
+Version tags are immutable, so any change to a Dockerfile or its inputs publishes a new version.
+`scripts/bump-build-unit.sh` moves everything a bump touches. It advances the patch number in `VERSION`, retags every
+full tag the family README names, and repoints the upstream pins the README names to the ones the Dockerfile uses. The
+lint stage compares the README against the build unit, so a bump made by hand that misses one of them fails there.
 
 A change to what a target ships or promises also updates, in the same pull request:
 
@@ -125,7 +168,7 @@ A change to what a target ships or promises also updates, in the same pull reque
 
 <div id='adding-an-upstream-version'></div>
 
-## Adding an upstream version
+### Adding an upstream version
 
 When a family's upstream moves to a new minor:
 
@@ -142,7 +185,7 @@ The old version stays untouched.
 
 <div id='adding-a-family'></div>
 
-## Adding a family
+### Adding a family
 
 1. Create the build unit under `images/<family>/<upstream-minor>/`, mirroring an existing one: a multi-target
    `Dockerfile`, `VERSION`, `.dockerignore`, `conf/` or `bin/` where the family needs them, and a `scripts/smoke`
@@ -159,7 +202,7 @@ The workflows pick the new targets up on their own, because their matrix comes f
 
 <div id='handling-a-vulnerability'></div>
 
-## Handling a vulnerability
+### Handling a vulnerability
 
 Fix it first. In order of preference:
 
@@ -183,7 +226,7 @@ beside an entry is met, the entry is deleted rather than carried forward.
 
 <div id='publication'></div>
 
-## Publication
+### Publication
 
 Merging to `main` is what publishes. The `CD` workflow runs the same gate on a native `linux/amd64` runner and a native
 `linux/arm64` one, so every architecture that ships was built, scanned, audited, and smoke-tested rather than only
@@ -210,31 +253,3 @@ container registry, with a build provenance attestation, an SBOM, and the family
 - **Local publication is gated the same way.** `make publish` pushes the versioned tags, and each `publish-<family>`
   target lists `review-<family>` as a prerequisite. `REGISTRY` defaults to `docker.io` and accepts any other registry
   (`make publish REGISTRY=ghcr.io`).
-
-<div id='commits-and-pull-requests'></div>
-
-## Commits and pull requests
-
-- Write the subject as one imperative sentence that says what the change does, ending with a period:
-  `Upgrade the inherited openssl and stop reporting accepted risk.`
-- Keep one concern per pull request. A gate that went red for an unrelated upstream reason is fixed in the same pull
-  request, and its description says so.
-- In the description, state what was verified and what was not, for example which `make review-<family>` runs passed
-  locally.
-- Pull requests are squash-merged, so the pull request title becomes the commit subject on `main`.
-
-<div id='reporting-a-security-issue'></div>
-
-## Reporting a security issue
-
-Do not open a public issue for a vulnerability in this repository or in how an image is built. Report it privately
-through [GitHub security advisories](https://github.com/gustavofreze/docker-images/security/advisories/new).
-
-A CVE in an upstream package that a scanner already reports is not a private matter: open a regular
-[issue](https://github.com/gustavofreze/docker-images/issues) naming the image tag and the identifier.
-
-<div id='license'></div>
-
-## License
-
-By contributing, you agree that your contribution is licensed under the [MIT](LICENSE) license of this repository.

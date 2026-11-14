@@ -123,7 +123,8 @@ For a new family or target:
    documentation check and the automated bump keep in step with the Dockerfile. The template marks the
    slots that are conditional: the service subsection and the health check column exist only for a
    family whose targets start a long-running process, and the VEX paragraph only for a family that
-   publishes one. Omit a conditional slot rather than inventing content to fill it. Add the family to
+   publishes one. Omit a conditional slot rather than inventing content to fill it. A command is always
+   one fenced block of its own under a one-line lead ("To <do what>, run:"), in every README here. Add the family to
    the images table of the root README as well.
 3. Write `scripts/smoke` sourcing the shared library and asserting what each target's class promises,
    per § Smoke contract.

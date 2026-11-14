@@ -101,10 +101,17 @@ installed without activating anything.
 
 ### As a tooling image
 
-The `cli` image is invoked directly and never appears in a Dockerfile:
+The `cli` image is invoked directly and never appears in a Dockerfile.
+
+To install the project dependencies, run:
 
 ```shell
 docker run --rm -v "$(pwd)":/app gustavofreze/python:3.14-cli-1.0.12 poetry install
+```
+
+To execute a script, run:
+
+```shell
 docker run --rm -v "$(pwd)":/app gustavofreze/python:3.14-cli-1.0.12 python3 your-script.py
 ```
 
@@ -129,7 +136,9 @@ The smoke suite asserts the non-root user, the interpreter defaults, the virtual
 versions, and the absence of an installer or a compiler in the production surface.
 
 Every tag also carries an [OpenVEX](https://openvex.dev) analysis as a cosign attestation, stating per CVE whether the
-image is genuinely affected. A scanner that reads it applies the analysis on its own:
+image is genuinely affected. A scanner that reads it applies the analysis on its own.
+
+To scan a tag with the analysis applied, run:
 
 ```shell
 trivy image --vex oci gustavofreze/python:3.14-runtime-1.0.12

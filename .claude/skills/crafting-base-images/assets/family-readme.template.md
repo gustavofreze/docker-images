@@ -79,10 +79,12 @@ A project consumes the base in two thin files and adds only its own dependencies
 
 ### As a tooling image
 
-The `cli` image is invoked directly and never appears in a Dockerfile:
+The `cli` image is invoked directly and never appears in a Dockerfile.
+
+<One block per command, each under a one-line lead in the shape "To <do what>, run:".>
 
 ```shell
-<one or two representative invocations over a bind mount>
+<one representative invocation over a bind mount>
 ```
 
 <### As a service, only when a target of this family starts a long-running process of its own. A

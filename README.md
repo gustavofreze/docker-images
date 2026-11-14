@@ -3,20 +3,157 @@
 [![CD](https://github.com/gustavofreze/docker-images/actions/workflows/cd.yml/badge.svg)](https://github.com/gustavofreze/docker-images/actions/workflows/cd.yml)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
+* [Overview](#overview)
+    - [Premises](#premises)
+    - [Layout](#layout)
+* [Installation](#installation)
+    - [Repository](#repository)
+    - [Build](#build)
+    - [Review](#review)
+* [Images](#images)
+    - [Targets](#targets)
+    - [Tags](#tags)
+    - [Usage](#usage)
+    - [Usage contract](#usage-contract)
+    - [Verification gate](#verification-gate)
+* [License](#license)
+* [Contributing](#contributing)
+
+<div id='overview'></div>
+
+## Overview
+
 Hardened, reproducible container base images for PHP, Python, and Rust projects. Every image is pinned to an exact
 upstream release, runs non-root where an application runs it, and is published only after it passes one verification
 gate on `linux/amd64` and `linux/arm64`.
 
-* [Images](#images)
-    - [Targets](#targets)
-    - [Tags](#tags)
-* [Usage](#usage)
-    - [Usage contract](#usage-contract)
-* [Verification gate](#verification-gate)
-* [Premises](#premises)
-* [Development](#development)
-    - [Layout](#layout)
-* [License](#license)
+<div id='premises'></div>
+
+### Premises
+
+| Premise                   | What it means                                                                                 |
+|:--------------------------|:----------------------------------------------------------------------------------------------|
+| Exact upstream pins       | Every `FROM` names a patch version and a distro release, and package trees are locked.        |
+| Hermetic builds           | Nothing is fetched at build time without a pinned version and a verified sha256.              |
+| Non-root by default       | Every target an application runs drops to an unprivileged user.                               |
+| Lean layers               | One `RUN` per concern, build-only dependencies deleted in the same layer, `COPY` never `ADD`. |
+| Immutable versioned tags  | Any change to a Dockerfile or its inputs publishes a new version instead of rewriting one.    |
+| A gate before publication | Neither the Makefile nor the CD workflow can publish an unreviewed image.                     |
+
+<div id='layout'></div>
+
+### Layout
+
+Every family lives under `images/`, with one self-contained build unit per upstream minor and a family `README.md` one
+level up.
+
+<details>
+<summary>Repository tree</summary>
+
+```
+docker-images/
+├── Makefile                        # build, review, publish
+├── docker-compose.yml              # validator image versions, single source, Dependabot tracked
+├── vex/                            # per-CVE analysis, published with the images as an attestation
+│   └── python.openvex.json         # one file per family that has one, and php and rust currently have none
+├── .grype/                         # gate policy for Grype: risks with no remediation, per family
+│   └── python.yaml
+├── .trivy/                         # the same acceptance for Trivy, which names them differently
+│   └── python.yaml
+├── docs/diagrams/                  # README diagrams: the HTML source and the SVG exported from it
+├── scripts/
+│   ├── smoke-lib.sh                # shared host-side smoke helpers every family sources
+│   ├── bump-build-unit.sh          # moves a build unit VERSION and every tag and pin its README names
+│   ├── discover-images.sh          # build matrix: one entry per target, read from the Dockerfiles
+│   ├── changed-build-units.sh      # the build units a commit range touches, read by the version guard
+│   └── check-documentation.sh      # asserts every family README still agrees with its build units
+└── images/
+    ├── php/
+    │   ├── README.md               # family reference, published as the Docker Hub overview
+    │   ├── DESCRIPTION             # the Docker Hub short description, one line
+    │   └── 8.5/                    # build unit for the 8.5 upstream line
+    │       ├── Dockerfile          # multi-target: builder, cli, runtime, development
+    │       ├── VERSION             # base semantic version for this line
+    │       ├── .dockerignore
+    │       ├── bin/                # binaries baked into the images (FPM health check)
+    │       ├── conf/               # PHP, OPcache, Xdebug, and FPM configuration
+    │       └── scripts/smoke       # boots throwaway containers, asserts the runtime contract
+    ├── python/
+    │   ├── README.md
+    │   ├── DESCRIPTION
+    │   └── 3.14/                   # build unit for the 3.14 upstream line
+    │       ├── Dockerfile
+    │       ├── VERSION
+    │       ├── .dockerignore
+    │       ├── requirements.txt    # the tools the image installs, tracked by Dependabot
+    │       ├── requirements-development.txt
+    │       ├── constraints.txt     # the tree they resolve to, so a build is reproducible
+    │       └── scripts/smoke
+    └── rust/
+        ├── README.md
+        ├── DESCRIPTION
+        └── 1.100/                  # build unit for the 1.100 upstream line
+            ├── Dockerfile
+            ├── VERSION
+            ├── .dockerignore
+            └── scripts/smoke
+```
+
+</details>
+
+<div id='installation'></div>
+
+## Installation
+
+<div id='repository'></div>
+
+### Repository
+
+To clone the repository using the command line, run:
+
+```bash
+git clone https://github.com/gustavofreze/docker-images.git
+```
+
+<div id='build'></div>
+
+### Build
+
+To build every image family locally, run:
+
+```bash
+make build
+```
+
+To build a single family, run:
+
+```bash
+make build-<family>
+```
+
+To list every build unit and the tags it publishes, run:
+
+```bash
+make discover
+```
+
+<div id='review'></div>
+
+### Review
+
+To run the full local gate (lint, build, scan, audit, efficiency, smoke), run:
+
+```bash
+make review
+```
+
+To scope the same gate to one family, run:
+
+```bash
+make review-<family>
+```
+
+> You can check other available commands by running `make help`.
 
 <div id='images'></div>
 
@@ -82,7 +219,7 @@ a new versioned tag. An alias floats only when the client re-pulls, so `--pull=a
 
 <div id='usage'></div>
 
-## Usage
+### Usage
 
 A project consumes a base in two thin files and adds only its own dependencies, code, and tuning. The shape is the
 same in every family:
@@ -96,7 +233,9 @@ FROM gustavofreze/<family>:<upstream-minor>-runtime-<version>
 COPY --from=builder <what the build produced> <where the runtime expects it>
 ```
 
-```shell
+To run a one-shot command in the tooling image, run:
+
+```bash
 docker run --rm -v "$(pwd)":<workdir> gustavofreze/<family>:<upstream-minor>-cli <command>
 ```
 
@@ -120,7 +259,7 @@ The rules that hold across every family:
 
 <div id='verification-gate'></div>
 
-## Verification gate
+### Verification gate
 
 No tag is published before it passes the whole gate. `make review` runs it locally, and the `CI` and `CD` workflows
 run the same command on a native `linux/amd64` runner and a native `linux/arm64` one.
@@ -149,99 +288,14 @@ A finding that cannot be fixed locally is disclosed, not hidden. The family publ
 reported rather than silenced. Only Python carries one today, and [its README](images/python/README.md#verification)
 shows how a scanner reads it.
 
-<div id='premises'></div>
-
-## Premises
-
-| Premise                   | What it means                                                                                 |
-|:--------------------------|:----------------------------------------------------------------------------------------------|
-| Exact upstream pins       | Every `FROM` names a patch version and a distro release, and package trees are locked.        |
-| Hermetic builds           | Nothing is fetched at build time without a pinned version and a verified sha256.              |
-| Non-root by default       | Every target an application runs drops to an unprivileged user.                               |
-| Lean layers               | One `RUN` per concern, build-only dependencies deleted in the same layer, `COPY` never `ADD`. |
-| Immutable versioned tags  | Any change to a Dockerfile or its inputs publishes a new version instead of rewriting one.    |
-| A gate before publication | Neither the Makefile nor the CD workflow can publish an unreviewed image.                     |
-
-<div id='development'></div>
-
-## Development
-
-```bash
-git clone https://github.com/gustavofreze/docker-images.git
-cd docker-images
-
-make build       # build every family, or make build-<family>
-make review      # the full gate, or make review-<family>
-make discover    # every build unit and the tags it publishes
-make help        # every other command
-```
-
-[CONTRIBUTING.md](CONTRIBUTING.md) covers the rest: the pull request workflow, the versioning rules, adding a family
-or an upstream version, handling a vulnerability, and how publication works.
-
-<div id='layout'></div>
-
-### Layout
-
-Every family lives under `images/`, with one self-contained build unit per upstream minor and a family `README.md` one
-level up.
-
-<details>
-<summary>Repository tree</summary>
-
-```
-docker-images/
-├── Makefile                        # build, review, publish
-├── docker-compose.yml              # validator image versions, single source, Dependabot tracked
-├── vex/                            # per-CVE analysis, published with the images as an attestation
-│   └── python.openvex.json         # one file per family that has one, and php and rust currently have none
-├── .grype/                         # gate policy for Grype: risks with no remediation, per family
-│   └── python.yaml
-├── .trivy/                         # the same acceptance for Trivy, which names them differently
-│   └── python.yaml
-├── docs/diagrams/                  # README diagrams: the HTML source and the SVG exported from it
-├── scripts/
-│   ├── smoke-lib.sh                # shared host-side smoke helpers every family sources
-│   ├── bump-build-unit.sh          # moves a build unit VERSION and every tag and pin its README names
-│   ├── discover-images.sh          # build matrix: one entry per target, read from the Dockerfiles
-│   ├── changed-build-units.sh      # the build units a commit range touches, read by the version guard
-│   └── check-documentation.sh      # asserts every family README still agrees with its build units
-└── images/
-    ├── php/
-    │   ├── README.md               # family reference, published as the Docker Hub overview
-    │   ├── DESCRIPTION             # the Docker Hub short description, one line
-    │   └── 8.5/                    # build unit for the 8.5 upstream line
-    │       ├── Dockerfile          # multi-target: builder, cli, runtime, development
-    │       ├── VERSION             # base semantic version for this line
-    │       ├── .dockerignore
-    │       ├── bin/                # binaries baked into the images (FPM health check)
-    │       ├── conf/               # PHP, OPcache, Xdebug, and FPM configuration
-    │       └── scripts/smoke       # boots throwaway containers, asserts the runtime contract
-    ├── python/
-    │   ├── README.md
-    │   ├── DESCRIPTION
-    │   └── 3.14/                   # build unit for the 3.14 upstream line
-    │       ├── Dockerfile
-    │       ├── VERSION
-    │       ├── .dockerignore
-    │       ├── requirements.txt    # the tools the image installs, tracked by Dependabot
-    │       ├── requirements-development.txt
-    │       ├── constraints.txt     # the tree they resolve to, so a build is reproducible
-    │       └── scripts/smoke
-    └── rust/
-        ├── README.md
-        ├── DESCRIPTION
-        └── 1.100/                  # build unit for the 1.100 upstream line
-            ├── Dockerfile
-            ├── VERSION
-            ├── .dockerignore
-            └── scripts/smoke
-```
-
-</details>
-
 <div id='license'></div>
 
 ## License
 
 Collection is licensed under [MIT](LICENSE).
+
+<div id='contributing'></div>
+
+## Contributing
+
+Please follow the [contributing guidelines](CONTRIBUTING.md) to contribute to the project.
