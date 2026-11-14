@@ -1,1 +1,1 @@
-Hardened, reproducible Rust base images: 13 MB static runtime, development, builder and cli.
+Hardened, reproducible Rust base images: runtime, development, builder and cli. Non-root.
