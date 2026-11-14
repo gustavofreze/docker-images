@@ -22,4 +22,5 @@ Makefile       linguist-detectable=false
 *.sh           linguist-detectable=false
 **/scripts/*   linguist-detectable=false
 **/bin/*       linguist-detectable=false
+
 .claude/**     linguist-detectable=false
