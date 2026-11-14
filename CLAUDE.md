@@ -49,6 +49,14 @@ the lint stage of the gate, not by convention. The `crafting-base-images` skill 
 adding a family, a target, or an upstream version. Repository documentation (README, commit messages)
 is written strictly in English.
 
+Every edit to a `README.md` is checked by `.claude/hooks/check-markdown-layout.py`, a `PostToolUse` hook that blocks
+on a prose line over 120 columns, on an inline span split across a line break, and on a break beside a delimiter. Run
+it with `--fix` to re-wrap what it reports:
+
+```
+python3 .claude/hooks/check-markdown-layout.py --fix
+```
+
 - **Prose punctuation.** Do not use `;`, ` — ` (em-dash), ` – ` (en-dash), or ` -- ` as clause
   separators in prose or Markdown. Use two sentences, a comma, a colon, or parentheses instead.
   Hyphens in compound identifiers and Markdown tables are exempt.
