@@ -1,5 +1,5 @@
 ---
-description: Authoring rules for the public PHP and Python container base images. The image bodies, their configuration, and the verification gate all live in this repository. Nothing project-specific enters an image.
+description: Authoring rules for the public PHP, Python, and Rust container base images. The image bodies, their configuration, and the verification gate all live in this repository. Nothing project-specific enters an image.
 paths:
     - ".dockerignore"
     - "*.dockerignore"
@@ -67,6 +67,11 @@ The Python base (`gustavofreze/python`, four targets) bakes in the `app` user (u
 interpreter defaults (`PYTHONUNBUFFERED`, `PYTHONDONTWRITEBYTECODE`,
 `PYTHONFAULTHANDLER`), and a pinned cacheless pip. Poetry and the C toolchain live in `builder` and
 `cli`, Poetry and debugpy in `development`, and neither reaches `runtime`.
+
+The Rust base (`gustavofreze/rust`, four targets) bakes in the `app` user (uid 1000) with `WORKDIR /app`, the Alpine
+certificate bundle, and `RUST_BACKTRACE=1` in `runtime` and `development`. rustc, Cargo, the gcc linker and `musl-dev`
+live in `builder`, `cli` and `development`, Clippy and rustfmt in `cli` and `development`, and none of them reaches
+`runtime`, which is a pinned Alpine, flattened to one layer, that a statically linked binary is copied into.
 
 ## Stage vocabulary and tags
 
@@ -252,13 +257,45 @@ simplifying an instruction: each item below is load bearing, and the build or th
   suppressed covers a package pip vendors, so restoring pip here fails the gate.
 - **The Python `builder` keeps its C toolchain on purpose.** It is the stage an application compiles wheels in, so
   pruning it only moves the same install into the consuming Dockerfile.
+- **The Rust `runtime` is built on `alpine`, not on `rust`.** A release binary targeting musl links statically, so
+  production needs no part of the toolchain image, and inheriting it would ship 1.4GB of compiler to run a few
+  megabytes. That makes `runtime` a second distinct upstream base, which is why it carries the full label set. Its
+  `alpine` pin and the `-alpine<release>` suffix of the `rust` pin name the same distro release and move together, by
+  hand: `dependabot.yml` holds both to their minor, since a release apart they would compile against one musl and run on
+  another.
+- **The Rust `runtime` is `FROM scratch` with one `COPY --from=rootfs / /`.** The `rootfs` stage is the pinned Alpine
+  with its inherited packages upgraded and the `app` user added, and `runtime` copies that whole file system into an
+  empty image. Built the ordinary way, as a `RUN` on top of `alpine`, the upgrade left the replaced library in the base
+  layer, and because this target adds almost nothing of its own, dive measured 96.8% of its user bytes as waste
+  (2026-11-14, zlib 1.3.2-r1 to 1.4-r0). No threshold in `.dive-ci-shadowed` covers that, and one that did would cover
+  nothing. Copying the result removes the shadow instead of exempting it, so the target stays on `.dive-ci` at 100% and
+  the vulnerable bytes are not shipped in a lower layer. hadolint reports a whole file system copy as DL3067, because
+  between ordinary stages it drags build leftovers along. Here the source stage holds nothing but the file system to
+  ship, so the line carries an inline `hadolint ignore=DL3067`, the same named exception shape as DL3002 on a `cli`.
+  `FROM scratch` inherits nothing, so the stage restates what Alpine declared: the `PATH` and the `/bin/sh` default
+  command. It installs no `ca-certificates` package, because the Alpine base already carries the bundle a TLS client
+  reads.
+- **The Rust `development` copies the toolchain out of `cli` instead of building `FROM` it.** The stage vocabulary makes
+  `development` a variant of `runtime`, so it starts from the image production runs and adds the toolchain on top:
+  `/usr/local/rustup` and `/usr/local/cargo` from the `cli` stage of the same Dockerfile, which already carries Clippy
+  and rustfmt, plus the gcc linker and `musl-dev` rustc links with. The source is a stage built here, so the copy adds
+  no second pin. `ENV` does not travel with a `COPY`, so the stage declares `CARGO_HOME`, `RUSTUP_HOME` and the `PATH`
+  entry again. It does not declare `RUST_VERSION`, which would be a second place the pin lives.
+- **`/usr/local/cargo` and `/usr/local/rustup` stay writable by any user, as upstream leaves them.** The official image
+  runs `chmod -R a+w` on both so a non-root user can fetch crates and add components, which is what lets `builder` and
+  `development` run as uid 1000 with no configuration. Tightening it here means a `chmod -R` in a later layer, which
+  rewrites the metadata of every file and makes dive count the whole toolchain as shadowed, per § Lean layers. Neither
+  directory exists in `runtime`.
+- **Clippy and rustfmt enter through `rustup component add`, in `cli` only.** rustup resolves a component to the exact
+  toolchain the `FROM` pin installed and verifies it against the hashes in that release's manifest, so the version is
+  the pin itself and no `ARG` restates it. `builder` stays without them, which its smoke asserts.
 - **The `cli` targets end as root on purpose.** They are invoked over a bind mount owned by the caller and must write
   into it. That is why each carries `hadolint ignore=DL3002` and is audited with the CIS-DI-0001 exemption.
 - **Each phar is fetched to a scratch path and installed onto `PATH` only after `sha256sum -c`
   passes,** so an unverified artifact is never executable, not even between two instructions.
 - **`phpmd` on `PATH` is a wrapper, not the phar.** The phar sits at `/usr/local/lib/phpmd.phar` and the wrapper
   silences the deprecation notices PHPMD 2.15.0 raises on PHP 8.5, keeping stdout parseable.
-- **The last `USER` is a numeric uid, not a name.** `USER 82` (php `www-data`) and `USER 1000` (python
+- **The last `USER` is a numeric uid, not a name.** `USER 82` (php `www-data`) and `USER 1000` (python and rust
   `app`). A name only resolves through the image's own `/etc/passwd`, so an orchestrator cannot verify
   it: Kubernetes `runAsNonRoot` rejects a pod whose image declares a non-numeric user and no explicit
   `runAsUser`. hadolint enforces this as DL3066. The named user still exists in the image, so `whoami`
@@ -267,7 +304,7 @@ simplifying an instruction: each item below is load bearing, and the build or th
   integration suite that drives throwaway containers (a database, a migration runner) shells out to
   `docker` against the host socket, and the suite cannot bootstrap without the binary. That is a
   tooling-image concern, so it stays in the one image a Makefile invokes and never reaches a `builder`,
-  a `runtime`, or any Python target, each of which asserts its absence in `scripts/smoke`. The PHP
+  a `runtime`, or any Python or Rust target, each of which asserts its absence in `scripts/smoke`. The PHP
   `cli` smoke asserts the opposite, so removing it breaks that suite loudly instead of silently. The
   cost is roughly 30MB. It is copied from the pinned official image through a named stage
   (`FROM docker:<version>-cli-alpine<release> AS docker-cli`, then `COPY --from=docker-cli`) rather
@@ -292,11 +329,11 @@ simplifying an instruction: each item below is load bearing, and the build or th
   acceptable risk under § Vulnerability acceptance, so the fix has to enter the image. A bare
   `apk add libcrypto3` is a no-op on a package that is already installed and already satisfies the
   constraint, so only `--upgrade` moves it. The line sits in each stage built directly on an upstream
-  base, which is the php `builder` and `runtime` and the python `builder` and `runtime`, and every
+  base, which is the `builder` and `runtime` of php and python and the `builder` and `rootfs` of rust, and every
   other target inherits the result through its parent stage. Each family names the packages its own
-  base actually ships, so php names `brotli-libs curl libcrypto3 libcurl libssl3 openssl` and python
-  names `libcrypto3 libssl3 libuuid zlib`: adding `openssl` or `curl` to python would install a binary
-  that base does not carry, and php carries no util-linux package to name. The python `builder` names libuuid and zlib
+  base actually ships, so php names `brotli-libs curl libcrypto3 libcurl libssl3 openssl zlib`, python
+  names `libcrypto3 libssl3 libuuid zlib` and rust names `zlib`: adding `openssl` or `curl` to python would install a
+  binary that base does not carry, and php carries no util-linux package to name. The python `builder` names libuuid and zlib
   alone, because `openssl-dev` already pulls the current openssl in there and nothing pulls either. The set
   is kept to what was reported rather than a blanket `apk upgrade`, which would also drag sqlite-libs
   and apk-tools along, because every upgraded package shadows the base layer's copy and the shadowed
@@ -308,7 +345,9 @@ simplifying an instruction: each item below is load bearing, and the build or th
   could refresh, how zlib followed, when `python:3.14.8-alpine3.24` still shipped 1.3.2-r0
   against an index serving 1.3.2-r1, and how brotli-libs, curl and libcurl joined the php set, when
   `php:8.5.12-fpm-alpine3.24` still shipped brotli 1.2.0-r1 and curl 8.22.0-r0 against an index
-  serving 1.2.1-r0 and 8.23.0-r0, with no newer base tag to move to.
+  serving 1.2.1-r0 and 8.23.0-r0, with no newer base tag to move to. zlib reached the php and rust sets
+  the same way, when `php:8.5.12-fpm-alpine3.24`, `rust:1.100.0-alpine3.24` and `alpine:3.24.4` all
+  still shipped 1.3.2-r1 against an index serving 1.4-r0, the release that fixes CVE-2026-4738.
 - **The gate runs two vulnerability scanners.** Trivy reads the distro security database, Grype
   cross-references upstream advisories and Go module data. Neither is a superset: Grype caught a HIGH
   in the Go stdlib of a vendored binary that Trivy reported clean on the same image. An accepted

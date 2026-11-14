@@ -23,11 +23,11 @@
 
 ## Overview
 
-Hardened, reproducible container base images for PHP and Python projects. Each family ships one self-contained build
-unit per upstream version: a multi-target `Dockerfile`, its baked configuration or scripts, a `VERSION` file, and a
-`scripts/smoke` assertion script. A single verification gate (`make review`) lints, builds, scans, audits, checks layer
-efficiency, and smoke-tests every family before a tag is published. Every validator runs in a container, so nothing
-beyond Docker and GNU Make is installed on the host.
+Hardened, reproducible container base images for PHP, Python, and Rust projects. Each family ships one self-contained
+build unit per upstream version: a multi-target `Dockerfile`, its baked configuration or scripts, a `VERSION` file, and
+a `scripts/smoke` assertion script. A single verification gate (`make review`) lints, builds, scans, audits, checks
+layer efficiency, and smoke-tests every family before a tag is published. Every validator runs in a container, so
+nothing beyond Docker and GNU Make is installed on the host.
 
 The premises the images are held to:
 
@@ -64,7 +64,9 @@ docker-images/
 ├── Makefile                        # build, review, publish
 ├── docker-compose.yml              # validator image versions, single source, Dependabot tracked
 ├── vex/                            # per-CVE analysis, published with the images as an attestation
-│   └── python.openvex.json         # one file per family that has one, and php currently has none
+│   └── python.openvex.json         # one file per family that has one, and php and rust currently have none
+├── .grype/                         # gate policy for Grype: risks with no remediation, per family
+│   └── python.yaml
 ├── .trivy/                         # the same acceptance for Trivy, which names them differently
 │   └── python.yaml
 ├── scripts/
@@ -83,15 +85,22 @@ docker-images/
     │       ├── bin/                # binaries baked into the images (FPM health check)
     │       ├── conf/               # PHP, OPcache, Xdebug, and FPM configuration
     │       └── scripts/smoke       # boots throwaway containers, asserts the runtime contract
-    └── python/
+    ├── python/
+    │   ├── README.md
+    │   └── 3.14/                   # build unit for the 3.14 upstream line
+    │       ├── Dockerfile          # multi-target: builder, cli, runtime, development
+    │       ├── VERSION
+    │       ├── .dockerignore
+    │       ├── requirements.txt    # the tools the image installs, tracked by Dependabot
+    │       ├── requirements-development.txt
+    │       ├── constraints.txt     # the tree they resolve to, so a build is reproducible
+    │       └── scripts/smoke
+    └── rust/
         ├── README.md
-        └── 3.14/                   # build unit for the 3.14 upstream line
+        └── 1.100/                  # build unit for the 1.100 upstream line
             ├── Dockerfile          # multi-target: builder, cli, runtime, development
             ├── VERSION
             ├── .dockerignore
-            ├── requirements.txt    # the tools the image installs, tracked by Dependabot
-            ├── requirements-development.txt
-            ├── constraints.txt     # the tree they resolve to, so a build is reproducible
             └── scripts/smoke
 ```
 
@@ -119,8 +128,8 @@ To build every image family locally, run:
 make build
 ```
 
-Build a single family with `make build-<family>` (`build-php`, `build-python`). No registry is involved locally.
-`make discover` prints every build unit and the tags it publishes.
+Build a single family with `make build-<family>` (`build-php`, `build-python`, `build-rust`). No registry is involved
+locally. `make discover` prints every build unit and the tags it publishes.
 
 <div id='review'></div>
 
@@ -143,6 +152,7 @@ Scope the same gate to one family with `make review-<family>`. `make verify` is 
 |:-------|:-----------------------------------------------------|:---------|:--------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------|:----------------------------------|
 | PHP    | PHP-FPM runtime plus build, development, and cli     | 8.5      | [gustavofreze/php](https://hub.docker.com/r/gustavofreze/php)       | [ghcr.io/gustavofreze/php](https://github.com/gustavofreze/docker-images/pkgs/container/php)       | [README](images/php/README.md)    |
 | Python | Interpreter runtime plus build, development, and cli | 3.14     | [gustavofreze/python](https://hub.docker.com/r/gustavofreze/python) | [ghcr.io/gustavofreze/python](https://github.com/gustavofreze/docker-images/pkgs/container/python) | [README](images/python/README.md) |
+| Rust   | Static binary runtime plus build, development, cli   | 1.100    | [gustavofreze/rust](https://hub.docker.com/r/gustavofreze/rust)     | [ghcr.io/gustavofreze/rust](https://github.com/gustavofreze/docker-images/pkgs/container/rust)     | [README](images/rust/README.md)   |
 
 <div id='targets'></div>
 
@@ -151,12 +161,12 @@ Scope the same gate to one family with `make review-<family>`. `make verify` is 
 Four stage names are the closed vocabulary. Each names what the image is, and a family ships only the stages its role
 calls for.
 
-| Target        | What it is                                                                          | Families    |
-|:--------------|:------------------------------------------------------------------------------------|:------------|
-| `builder`     | Compilation base a project inherits via `FROM`, discarded in the multi-stage build. | php, python |
-| `runtime`     | Production image the platform runs.                                                 | php, python |
-| `cli`         | Local command-line tooling for one-shot commands, invoked from a project Makefile.  | php, python |
-| `development` | Variant of `runtime` built `FROM runtime`, adding local development tooling.        | php, python |
+| Target        | What it is                                                                          | Families          |
+|:--------------|:------------------------------------------------------------------------------------|:------------------|
+| `builder`     | Compilation base a project inherits via `FROM`, discarded in the multi-stage build. | php, python, rust |
+| `runtime`     | Production image the platform runs.                                                 | php, python, rust |
+| `cli`         | Local command-line tooling for one-shot commands, invoked from a project Makefile.  | php, python, rust |
+| `development` | Variant of `runtime` built `FROM runtime`, adding local development tooling.        | php, python, rust |
 
 `development` is subordinate to `runtime`, not a peer of it. It runs on a developer machine and is never deployed. Every
 target except `cli` runs as a non-root last user. The `cli` tooling images keep root as a named, justified exception,
@@ -178,7 +188,8 @@ gustavofreze/<family>:<upstream-minor>-<role>-<V>
 - Version tags are immutable. Any change to a Dockerfile or its inputs bumps `<V>`, and the CI gate fails a pull request
   that touches a build unit without bumping its `VERSION`.
 - `latest` is forbidden.
-- Each stage also carries one floating alias `<upstream-minor>-<role>` (`8.5-runtime`, `3.14-builder`, and the rest).
+- Each stage also carries one floating alias `<upstream-minor>-<role>` (`8.5-runtime`, `3.14-builder`, `1.100-cli`,
+  and the rest).
   The monthly rebuild repoints these aliases. Both forms are supported in a project: the versioned tag is reproducible
   and moves only when you bump it, the alias picks up the monthly security rebuild without a pull request and gives up
   reproducibility for it. An alias never crosses an upstream minor, so `8.5-runtime` stays on 8.5 after 8.6 ships.
@@ -199,15 +210,16 @@ bump.
 ### Versioning
 
 Each family keeps one build unit per upstream minor, under an `<upstream-minor>/` subdirectory (`images/php/8.5/`,
-`images/python/3.14/`). A build unit is self-contained: its own `Dockerfile`, `VERSION`, configuration, baked scripts,
-and `scripts/smoke`, with a base semantic version `<V>` that advances independently of every other upstream version. PHP
-8.5 can sit at `1.3.0` while a future PHP 8.6 sits at `1.0.0`.
+`images/python/3.14/`, `images/rust/1.100/`). A build unit is self-contained: its own `Dockerfile`, `VERSION`,
+configuration, baked scripts, and `scripts/smoke`, with a base semantic version `<V>` that advances independently of
+every other upstream version. PHP 8.5 can sit at `1.3.0` while a future PHP 8.6 sits at `1.0.0`.
 
 Two kinds of upstream change move differently:
 
-- **Minor or major bump** (PHP 8.5 to 8.6, Python 3.14 to 3.15). The Dockerfile and its configuration diverge, so the
-  new version is a new sibling subdirectory starting its own `VERSION` at `1.0.0`. The two lines publish in parallel and
-  coexist, and each project migrates on its own schedule.
+- **Minor or major bump** (PHP 8.5 to 8.6, Python 3.14 to 3.15, Rust 1.100 to 1.101). The Dockerfile and its
+  configuration diverge, so the new version is a new sibling subdirectory starting its own `VERSION` at `1.0.0`. The two
+  lines publish in parallel and coexist, and each project migrates on its own schedule. Dependabot is configured never
+  to open this bump, because it would make it in place inside the old subdirectory.
 - **Patch bump** (PHP 8.5.9 to 8.5.10). The upstream pin and the build unit's `VERSION` both move inside the same
   subdirectory, no new directory.
 
@@ -259,7 +271,7 @@ family lives in that family's README. The rules that hold across every family:
    ships. The floating `<upstream-minor>-<role>` alias is supported too, and it trades that reproducibility for the
    monthly security rebuild arriving without a pull request. `latest` does not exist.
 2. Do not re-declare what the base provides: extensions, the non-root user, hardening, OPcache defaults, the virtual
-   environment path, the health check, the interpreter defaults.
+   environment path, the health check, the interpreter defaults, the Rust toolchain paths.
 3. Ship a `.dockerignore` next to each Dockerfile, and never copy a secret into a build context.
 4. Build-time credentials enter through a BuildKit secret (`RUN --mount=type=secret,id=<name>`), never through a baked
    `ARG` or `ENV`.

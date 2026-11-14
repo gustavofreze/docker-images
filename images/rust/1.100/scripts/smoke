@@ -1,0 +1,129 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# smoke: Boots throwaway containers from the Rust base images and asserts the runtime contract.
+# Every target here is a language base with no process of its own, so each contract is asserted by
+# running the toolchain directly, and the runtime by running a binary the builder just compiled.
+#
+# Usage: smoke <runtime-image> <development-image> <builder-image> <cli-image>
+#
+# Arguments:
+#   runtime-image      Tag of the production runtime image to verify.
+#   development-image  Tag of the development image to verify.
+#   builder-image      Tag of the builder toolchain image to verify.
+#   cli-image          Tag of the cli tooling image to verify.
+
+# shellcheck source=SCRIPTDIR/../../../../scripts/smoke-lib.sh
+source "${SMOKE_LIB:?SMOKE_LIB not set}"
+
+# The probe is a generated hello world with no dependency, so the build reaches no registry.
+readonly PROBE_BUILD='cargo init --quiet --vcs none --name probe /tmp/probe && cargo build --quiet --release --manifest-path /tmp/probe/Cargo.toml'
+
+RUST_VERSION="$(pinned_upstream_version "$(dirname "$(dirname "${BASH_SOURCE[0]}")")/Dockerfile" rust)"
+readonly RUST_VERSION
+
+run() {
+    local image="${1:?Usage: run <image> <command...>}"
+    shift
+    docker run --rm --entrypoint "" "${image}" "$@"
+}
+
+verify_toolchain() {
+    local image="${1:?Usage: verify_toolchain <image> <label>}"
+    local label="${2:?Usage: verify_toolchain <image> <label>}"
+
+    assert_contains "rustc ${RUST_VERSION}" "$(run "${image}" rustc --version)" "pinned rustc version present in the ${label}"
+    assert_contains "cargo ${RUST_VERSION}" "$(run "${image}" cargo --version)" "pinned Cargo version present in the ${label}"
+    assert_contains "/app" "$(run "${image}" pwd)" "${label} working directory is the application root"
+}
+
+verify_linters() {
+    local image="${1:?Usage: verify_linters <image> <label>}"
+    local label="${2:?Usage: verify_linters <image> <label>}"
+
+    assert_contains "clippy" "$(run "${image}" cargo clippy --version)" "Clippy present in the ${label}"
+    assert_contains "rustfmt" "$(run "${image}" cargo fmt --version)" "rustfmt present in the ${label}"
+    assert_contains "GNU bash" "$(run "${image}" bash --version)" "bash present in the ${label}"
+    assert_contains "git version" "$(run "${image}" git --version)" "git present in the ${label}"
+}
+
+verify_runtime_image() {
+    local image="${1:?Usage: verify_runtime_image <image>}"
+
+    echo "[smoke] verifying production runtime ${image}"
+
+    assert_contains "app" "$(run "${image}" whoami)" "runtime runs as the non-root app user"
+    assert_contains "uid=1000" "$(run "${image}" id)" "runtime user is uid 1000"
+    assert_contains "/app" "$(run "${image}" pwd)" "runtime working directory is the application root"
+    assert_contains "1" "$(run "${image}" printenv RUST_BACKTRACE)" "panic backtraces enabled in the runtime"
+    assert_contains "ca-certificates.crt" "$(run "${image}" ls /etc/ssl/certs)" "certificate bundle present in the runtime"
+    assert_absent "${image}" "cargo" "Cargo absent from the production runtime"
+    assert_absent "${image}" "rustc" "compiler absent from the production runtime"
+    assert_absent "${image}" "gcc" "linker absent from the production runtime"
+    assert_absent "${image}" "git" "git absent from the production runtime"
+    assert_absent "${image}" "bash" "bash absent from the production runtime"
+    assert_absent "${image}" "curl" "curl absent from the production runtime"
+    assert_absent "${image}" "docker" "docker CLI absent from the production runtime"
+}
+
+verify_development_image() {
+    local image="${1:?Usage: verify_development_image <image>}"
+
+    echo "[smoke] verifying development image ${image}"
+
+    verify_toolchain "${image}" "development image"
+    verify_linters "${image}" "development image"
+    assert_contains "app" "$(run "${image}" whoami)" "development image runs as the non-root app user"
+    assert_contains "1" "$(run "${image}" printenv RUST_BACKTRACE)" "panic backtraces inherited from the runtime"
+    assert_contains "Hello, world!" "$(run "${image}" sh -c "${PROBE_BUILD} && /tmp/probe/target/release/probe")" "non-root user compiles and runs a binary in the development image"
+    assert_absent "${image}" "docker" "docker CLI absent from the development image"
+}
+
+verify_builder_image() {
+    local image="${1:?Usage: verify_builder_image <image> <runtime-image>}"
+    local runtime_image="${2:?Usage: verify_builder_image <image> <runtime-image>}"
+
+    echo "[smoke] verifying builder ${image}"
+
+    verify_toolchain "${image}" "builder"
+    assert_contains "app" "$(run "${image}" whoami)" "builder runs as the non-root app user"
+    assert_contains "musl" "$(run "${image}" rustc --version --verbose)" "builder targets musl, so a release binary links statically"
+    assert_not_contains "clippy" "$(run "${image}" rustup component list --installed)" "linters absent from the builder"
+    assert_absent "${image}" "git" "git absent from the builder"
+    assert_absent "${image}" "docker" "docker CLI absent from the builder"
+
+    # The runtime carries no libgcc and no toolchain, so the binary only starts there if the builder
+    # linked it statically. It travels over a pipe because the two containers share no file system.
+    assert_contains "Hello, world!" "$(
+        run "${image}" sh -c "${PROBE_BUILD} && cat /tmp/probe/target/release/probe" \
+            | docker run --rm --interactive --entrypoint "" "${runtime_image}" \
+                sh -c 'cat > /tmp/probe && chmod 755 /tmp/probe && /tmp/probe'
+    )" "a release binary from the builder runs in the runtime as the non-root user"
+}
+
+verify_cli_image() {
+    local image="${1:?Usage: verify_cli_image <image>}"
+
+    echo "[smoke] verifying cli ${image}"
+
+    verify_toolchain "${image}" "cli"
+    verify_linters "${image}" "cli"
+    assert_contains "curl" "$(run "${image}" curl --version)" "curl present in the cli"
+    assert_absent "${image}" "docker" "docker CLI absent from the cli"
+}
+
+main() {
+    local runtime_image="${1:?Usage: smoke <runtime-image> <development-image> <builder-image> <cli-image>}"
+    local development_image="${2:?Usage: smoke <runtime-image> <development-image> <builder-image> <cli-image>}"
+    local builder_image="${3:?Usage: smoke <runtime-image> <development-image> <builder-image> <cli-image>}"
+    local cli_image="${4:?Usage: smoke <runtime-image> <development-image> <builder-image> <cli-image>}"
+
+    verify_runtime_image "${runtime_image}"
+    verify_development_image "${development_image}"
+    verify_builder_image "${builder_image}" "${runtime_image}"
+    verify_cli_image "${cli_image}"
+
+    echo "[smoke] all assertions passed"
+}
+
+main "$@"

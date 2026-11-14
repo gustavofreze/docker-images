@@ -23,6 +23,7 @@ updates:
     directories:
       - "/images/php/8.5"
       - "/images/python/3.14"
+      - "/images/rust/1.100"
     schedule:
       interval: "monthly"
     commit-message:
@@ -30,6 +31,21 @@ updates:
     labels:
       - "dependencies"
       - "docker"
+    # A build unit is one upstream minor, named by its directory, and a new minor is a new sibling
+    # directory that a person adds. Left alone, this ecosystem moves a pin across that boundary in
+    # place: it repointed images/python/3.14 at python:3.15.0, under labels, tags and a smoke suite
+    # that all still said 3.14. Only the images a family is named after are held to their minor, plus
+    # alpine, whose minor is the distro release the Rust toolchain tag also names. composer and docker
+    # are tools copied into a target, so their minors keep arriving here.
+    ignore:
+      - dependency-name: "php"
+        update-types: [ "version-update:semver-major", "version-update:semver-minor" ]
+      - dependency-name: "python"
+        update-types: [ "version-update:semver-major", "version-update:semver-minor" ]
+      - dependency-name: "rust"
+        update-types: [ "version-update:semver-major", "version-update:semver-minor" ]
+      - dependency-name: "alpine"
+        update-types: [ "version-update:semver-major", "version-update:semver-minor" ]
     groups:
       docker:
         patterns:
@@ -49,12 +65,16 @@ updates:
       - "dependencies"
       - "python"
     # constraints.txt is a resolved tree, not a manifest, but the pip ecosystem reads it as one and
-    # floats every line in it to the newest release. poetry pins poetry-core exactly (poetry 2.4.1
-    # requires poetry-core==2.4.0), so a floated line there opens a pull request that can never
-    # build. That line moves when a pin in requirements.txt moves, and the header of constraints.txt
-    # says how to regenerate the tree around it.
-    ignore:
-      - dependency-name: "poetry-core"
+    # floats every line in it to the newest release with no resolver behind the move. Ignoring
+    # poetry-core alone, the one line known to break, was not enough: the next run floated findpython
+    # to 0.9.0 under a poetry 2.5.1 that requires findpython<0.9.0, and the family stopped building.
+    # Any line of a resolved tree can do that, so only the tools the requirements files name are
+    # updated here. The tree moves when one of them does, and the header of constraints.txt says how
+    # to regenerate it.
+    allow:
+      - dependency-name: "pip"
+      - dependency-name: "poetry"
+      - dependency-name: "debugpy"
     groups:
       python:
         patterns:

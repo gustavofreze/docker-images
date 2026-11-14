@@ -1,0 +1,29 @@
+# Gate policy for the Python family, not a vulnerability analysis. The analysis lives in
+# vex/python.openvex.json, is published alongside the images, and any consumer scanning with --vex gets
+# it. This file is read only by the Python scans, through GRYPE_CONFIG, so nothing here reaches another
+# family.
+#
+# The entry is `affected` in the VEX, which is the truthful status: the image is built on CPython
+# 3.14.10 and carries it. Grype cross-references the upstream advisory, which names a fixed release,
+# so --only-fixed keeps reporting it, correctly. This file is the separate, explicit decision that
+# the gate does not stop on it. Nothing that is genuinely not affected belongs here: that is
+# expressed in the VEX and suppressed by the scanners on their own.
+#
+# CVE-2026-119170 is a regression in how hashlib enforces FIPS algorithms. The advisory names 3.14.10
+# as the only affected release and 3.14.11 as the fix, and 3.14.11 is not released: neither python.org
+# nor Docker Hub carries it, so there is no pin to move to. 3.14.9 is not a way back, because 3.14.10
+# is what fixed CVE-2026-115557, a Critical. The advisory states that only OpenSSL in FIPS mode is
+# affected, and no target ships or activates a FIPS provider: /usr/lib/ossl-modules holds legacy.so
+# alone and `_hashlib.get_fips_mode()` returns 0 on all four.
+#
+# CVE-2025-15367, the entry this file held until 2026-10-26, is not listed. Grype grades it Medium, so
+# it passes --fail-on high unaided and listing it would suppress more than the decision being made. It
+# stays `affected` in the VEX.
+#
+# Grype has no expiry field, unlike the Trivy policy beside it, so this block will not lapse on its
+# own. Accepted 2026-11-14 against 3.14.10, the newest release on the 3.14 line. Delete it when the pin
+# moves to 3.14.11.
+ignore:
+    - vulnerability: CVE-2026-119170
+      package:
+          name: python
