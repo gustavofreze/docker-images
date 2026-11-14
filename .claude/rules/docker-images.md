@@ -248,6 +248,11 @@ simplifying an instruction: each item below is load bearing, and the build or th
   development image.
 - **Drop-ins are numbered because PHP reads `conf.d` alphabetically.** Hardening is `10`, the development and cli
   overrides are `90`. An override numbered below the hardening file loses.
+- **Every PHP target is built on the FPM base, the `builder` and the `cli` included.** The FPM base is 36MB lighter
+  than the CLI base, because it omits the `php-cgi` and `phpdbg` SAPIs that nothing here uses, and it still ships the
+  CLI SAPI that Composer and the linters run on. Building every target on it means the family shares one base layer
+  instead of pulling two. The visible consequence is that `builder` and `cli` inherit the base's `EXPOSE 9000`, which
+  is metadata only: nothing in either image listens.
 - **`conf/fpm-shutdown.conf` opens `[global]` and then reopens `[www]`.** The alphabetical
   `php-fpm.d` include order reaches it with the `[www]` pool of `zz-docker.conf` still open, and
   `conf/fpm-development.conf` relies on that pool still being open when it is read.
@@ -320,7 +325,11 @@ simplifying an instruction: each item below is load bearing, and the build or th
   has already fixed is the family's accepted risk, so a bump to it also rewrites the family VEX and
   both gate policies, or deletes all three when the new toolchain leaves nothing to accept.
   `docker:29.9.2-cli-alpine3.24` is built with Go 1.26.10, which is why the PHP family now carries none
-  of the three.
+  of the three. It published a VEX until 1.0.3, with eight Go standard library advisories stated
+  `affected` because none had an artifact to pin. Go 1.26.10 is newer than all eight fixes and than the
+  three net/http and crypto/tls fixes that 1.26.8 still lacked, so the analysis and both gate policies
+  were deleted rather than carried forward. A finding that returns with no artifact to pin brings all
+  three back.
 - **An inherited package is named in `apk add` with `--upgrade`, and only once a scanner reported
   it.** An upstream base ships whatever was current when it was tagged, and that ages in place: both
   `python:3.14.7-alpine3.24` and `php:8.5.9-fpm-alpine3.24` carried openssl 3.5.7-r0 while the v3.24

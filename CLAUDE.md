@@ -27,11 +27,13 @@ Every image family lives under `images/`, one directory per family (`php/`, `pyt
 family holds one self-contained build unit per upstream minor under an `<upstream-minor>/` subdirectory
 (`images/php/8.5/`, `images/python/3.14/`, `images/rust/1.100/`), shipping a multi-target `Dockerfile`,
 a `VERSION` file, its configuration or baked scripts, a `.dockerignore`, and a `scripts/smoke` assertion
-script. A root
+script. The family `README.md` and `DESCRIPTION` one level up are published as the Docker Hub overview
+and short description. A root
 `scripts/` holds the host-side tooling the Makefile and the workflows run: the smoke library every
 family sources, the automated version bump, the discovery script the CI and CD workflows build their
 matrix from, the version guard's changed-unit detection, and the documentation check. The README
-documents the versioning scheme, the publication method, and the usage contract.
+documents the images, the tag scheme, the gate, and the usage contract. `CONTRIBUTING.md` documents the
+pull request workflow, the versioning rules, vulnerability handling, and how publication works.
 
 ## Dependency policy
 

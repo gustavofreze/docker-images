@@ -1,0 +1,61 @@
+name: Docker Hub overview
+
+on:
+  push:
+    branches: [ main ]
+    # Not part of CD on purpose. A family README changes without a build unit changing, and adding it to
+    # the CD paths would republish every tag of that family over itself to move a paragraph. A version
+    # bump always retags the README, so this workflow also runs on every change that publishes.
+    paths:
+      - 'images/*/README.md'
+      - 'images/*/DESCRIPTION'
+  workflow_dispatch:
+
+concurrency:
+  group: docker-hub-overview
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    name: Discover
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      families: ${{ steps.set-matrix.outputs.families }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - id: set-matrix
+        run: echo "families=$(./scripts/discover-images.sh --format=families)" >> "$GITHUB_OUTPUT"
+
+  overview:
+    name: "Overview of ${{ matrix.family }}"
+    needs: discover
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        family: ${{ fromJson(needs.discover.outputs.families) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Read the short description
+        id: description
+        env:
+          FAMILY: ${{ matrix.family }}
+        run: echo "short=$(head -n 1 "images/${FAMILY}/DESCRIPTION")" >> "$GITHUB_OUTPUT"
+
+      # The token needs the read, write and delete scope. Docker Hub accepts a description update from
+      # nothing narrower, so a token that can only push images fails here and publishes fine in CD.
+      - name: Publish the family README as the repository overview
+        uses: peter-evans/dockerhub-description@1b9a80c056b620d92cedb9d9b5a223409c68ddfa # v5.0.0
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+          repository: ${{ secrets.DOCKER_HUB_USERNAME }}/${{ matrix.family }}
+          readme-filepath: images/${{ matrix.family }}/README.md
+          short-description: ${{ steps.description.outputs.short }}

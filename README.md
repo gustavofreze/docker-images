@@ -1,63 +1,201 @@
 # Docker images
 
+[![CD](https://github.com/gustavofreze/docker-images/actions/workflows/cd.yml/badge.svg)](https://github.com/gustavofreze/docker-images/actions/workflows/cd.yml)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-* [Overview](#overview)
-    - [Layout](#layout)
-* [Installation](#installation)
-    - [Repository](#repository)
-    - [Build](#build)
-    - [Review](#review)
+Hardened, reproducible container base images for PHP, Python, and Rust projects. Every image is pinned to an exact
+upstream release, runs non-root where an application runs it, and is published only after it passes one verification
+gate on `linux/amd64` and `linux/arm64`.
+
 * [Images](#images)
     - [Targets](#targets)
     - [Tags](#tags)
-    - [Versioning](#versioning)
-    - [Publication](#publication)
+* [Usage](#usage)
     - [Usage contract](#usage-contract)
-    - [Self-verification](#self-verification)
-    - [Adding a family](#adding-a-family)
-    - [Adding an upstream version](#adding-an-upstream-version)
+* [Verification gate](#verification-gate)
+* [Premises](#premises)
+* [Development](#development)
+    - [Layout](#layout)
 * [License](#license)
 
-<div id='overview'></div>
+<div id='images'></div>
 
-## Overview
+## Images
 
-Hardened, reproducible container base images for PHP, Python, and Rust projects. Each family ships one self-contained
-build unit per upstream version: a multi-target `Dockerfile`, its baked configuration or scripts, a `VERSION` file, and
-a `scripts/smoke` assertion script. A single verification gate (`make review`) lints, builds, scans, audits, checks
-layer efficiency, and smoke-tests every family before a tag is published. Every validator runs in a container, so
-nothing beyond Docker and GNU Make is installed on the host.
+| Family | Upstream | Docker Hub                                                                                                                    | Runtime size                                                                                                                                     | GitHub Packages                                                                                    | Reference                         |
+|:-------|:---------|:------------------------------------------------------------------------------------------------------------------------------|:-------------------------------------------------------------------------------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------|:----------------------------------|
+| PHP    | 8.5      | [![Pulls](https://img.shields.io/docker/pulls/gustavofreze/php?label=pulls)](https://hub.docker.com/r/gustavofreze/php)       | [![Size](https://img.shields.io/docker/image-size/gustavofreze/php/8.5-runtime?label=runtime)](https://hub.docker.com/r/gustavofreze/php)        | [ghcr.io/gustavofreze/php](https://github.com/gustavofreze/docker-images/pkgs/container/php)       | [README](images/php/README.md)    |
+| Python | 3.14     | [![Pulls](https://img.shields.io/docker/pulls/gustavofreze/python?label=pulls)](https://hub.docker.com/r/gustavofreze/python) | [![Size](https://img.shields.io/docker/image-size/gustavofreze/python/3.14-runtime?label=runtime)](https://hub.docker.com/r/gustavofreze/python) | [ghcr.io/gustavofreze/python](https://github.com/gustavofreze/docker-images/pkgs/container/python) | [README](images/python/README.md) |
+| Rust   | 1.100    | [![Pulls](https://img.shields.io/docker/pulls/gustavofreze/rust?label=pulls)](https://hub.docker.com/r/gustavofreze/rust)     | [![Size](https://img.shields.io/docker/image-size/gustavofreze/rust/1.100-runtime?label=runtime)](https://hub.docker.com/r/gustavofreze/rust)    | [ghcr.io/gustavofreze/rust](https://github.com/gustavofreze/docker-images/pkgs/container/rust)     | [README](images/rust/README.md)   |
 
-The premises the images are held to:
+Each family README is the reference for that family: its published tags, what the images bake in, and how to consume
+them. It is published as the Docker Hub overview of that repository whenever it changes.
 
-- **Exact upstream pins.** Every `FROM` names a patch version and a distro release, never a moving tag. A package
-  manager run at build time pins its whole resolved tree, not only the packages named on the command line, so the same
-  commit builds the same image on any day and any runner.
-- **Hermetic builds.** No configuration or tool is fetched from the network at build time without a pinned version and a
-  verified sha256. Configuration is copied from the build context.
-- **Non-root by default.** Every target an application runs drops to an unprivileged user. A target that keeps root is a
-  named, justified exception that starts no long-running process.
-- **Lean layers.** One `RUN` per concern, build-only dependencies installed under a virtual group and deleted before the
-  layer closes, `COPY` never `ADD`.
-- **Immutable versioned tags.** Any change to a Dockerfile or its inputs bumps the build unit's
-  `VERSION`. `latest` is forbidden. A floating per-role alias sits beside every versioned tag, and which of the two a
-  project takes is the consumer's call.
-- **A gate before publication.** Publishing an unreviewed image is not possible through the Makefile or the CD workflow.
+<div id='targets'></div>
 
-Each family's own README is the reference for that family: its published tags, what the images bake in, and how to
-consume them. This README covers only what is shared across families: the tag scheme, the versioning rules, the gate,
-and the usage contract.
+### Targets
+
+Every family ships the same four targets from one multi-target `Dockerfile`. The stage name is the role, and the four
+names are a closed vocabulary.
+
+```mermaid
+flowchart LR
+    builder["builder<br/>compiles the project"] -->|"COPY --from"| image(["Your production image"])
+    runtime["runtime<br/>production base"] -->|"FROM"| image
+    runtime -.->|"FROM"| development["development<br/>runtime plus tooling"]
+    development -->|"FROM"| local(["Your local environment"])
+    cli["cli<br/>one-shot tooling"] -->|"docker run"| commands(["Your Makefile commands"])
+```
+
+| Target        | What it is                                                                          | Last user |
+|:--------------|:------------------------------------------------------------------------------------|:----------|
+| `builder`     | Compilation base a project inherits via `FROM`, discarded in the multi-stage build. | non-root  |
+| `runtime`     | Production image the platform runs.                                                 | non-root  |
+| `development` | Variant of `runtime` built `FROM runtime`, adding local development tooling.        | non-root  |
+| `cli`         | Local command-line tooling for one-shot commands, invoked from a project Makefile.  | root      |
+
+`development` is subordinate to `runtime`, not a peer of it. It runs on a developer machine and is never deployed. The
+`cli` images keep root as a named, justified exception, because they are invoked over a bind mount owned by the caller
+and must be able to write into it. A `HEALTHCHECK` ships only on a target that starts a long-running process of its
+own.
+
+<div id='tags'></div>
+
+### Tags
+
+```
+gustavofreze/<family>:<upstream-minor>-<target>-<version>
+              │        │                │        └── build unit version, immutable once published
+              │        │                └─────────── builder, runtime, development or cli
+              │        └──────────────────────────── upstream line, for example 8.5, 3.14 or 1.100
+              └───────────────────────────────────── php, python or rust
+```
+
+There is no bare tag and `latest` is forbidden. Every target is published in two forms, and which one a project takes
+is the consumer's call:
+
+|              | Versioned tag                              | Floating alias                             |
+|:-------------|:-------------------------------------------|:-------------------------------------------|
+| Form         | `<upstream-minor>-<target>-<version>`      | `<upstream-minor>-<target>`                |
+| Example      | `8.5-runtime-<version>`                    | `8.5-runtime`                              |
+| Moves        | Only when you bump it                      | On every rebuild, once the client re-pulls |
+| Reproducible | Yes                                        | No                                         |
+| Fits         | `runtime` and `builder`, anything shipping | `cli` and `development`, local tooling     |
+
+An alias never crosses an upstream minor, so `8.5-runtime` stays on 8.5 after 8.6 ships. A monthly rebuild repoints
+the aliases and refreshes the packages this repository installs itself. The inherited base moves forward only through
+a new versioned tag. An alias floats only when the client re-pulls, so `--pull=always` on `docker run` (or
+`pull_policy: always` in compose) is what actually makes it move.
+
+<div id='usage'></div>
+
+## Usage
+
+A project consumes a base in two thin files and adds only its own dependencies, code, and tuning. The shape is the
+same in every family:
+
+```dockerfile
+# syntax=docker/dockerfile:1
+FROM gustavofreze/<family>:<upstream-minor>-builder-<version> AS builder
+RUN <install the dependencies, then build the code>
+
+FROM gustavofreze/<family>:<upstream-minor>-runtime-<version>
+COPY --from=builder <what the build produced> <where the runtime expects it>
+```
+
+```shell
+docker run --rm -v "$(pwd)":<workdir> gustavofreze/<family>:<upstream-minor>-cli <command>
+```
+
+The concrete, copy-ready snippets live in each family README: [PHP](images/php/README.md#how-to-use-this-image),
+[Python](images/python/README.md#how-to-use-this-image), and [Rust](images/rust/README.md#how-to-use-this-image).
+
+<div id='usage-contract'></div>
+
+### Usage contract
+
+The rules that hold across every family:
+
+1. **Choose the tag form deliberately.** The versioned tag is the default for anything that ships, because it keeps a
+   rollback reproducible. The alias trades that for the monthly rebuild arriving without a pull request.
+2. **Do not re-declare what the base provides.** Extensions, the non-root user, hardening, OPcache defaults, the
+   virtual environment path, the health check, the interpreter defaults, the Rust toolchain paths.
+3. **Ship a `.dockerignore`** next to each Dockerfile, and never copy a secret into a build context.
+4. **Pass build-time credentials through a BuildKit secret** (`RUN --mount=type=secret,id=<name>`), never through a
+   baked `ARG` or `ENV`.
+5. **Put dependency layers before code layers**, so a code change does not invalidate the dependency cache.
+
+<div id='verification-gate'></div>
+
+## Verification gate
+
+No tag is published before it passes the whole gate. `make review` runs it locally, and the `CI` and `CD` workflows
+run the same command on a native `linux/amd64` runner and a native `linux/arm64` one.
+
+```mermaid
+flowchart LR
+    lint["Lint"] --> build["Build"] --> scan["Scan"] --> audit["Audit"] --> efficiency["Efficiency"] --> smoke["Smoke"]
+    smoke --> publish(["Publish"])
+```
+
+| Stage      | Tool                 | What stops the gate                                                              |
+|:-----------|:---------------------|:---------------------------------------------------------------------------------|
+| Lint       | hadolint, ShellCheck | A Dockerfile or shell finding, or a family README that disagrees with its build. |
+| Build      | BuildKit             | A target that does not build.                                                    |
+| Scan       | Trivy and Grype      | A fixable HIGH or CRITICAL vulnerability. Neither scanner is a superset.         |
+| Audit      | Dockle               | A CIS Docker Benchmark violation: root last user, setuid bits, secrets in `ENV`. |
+| Efficiency | dive                 | Wasted layer space: an unpruned build dependency or a forgotten cache.           |
+| Smoke      | `scripts/smoke`      | A broken runtime contract, asserted in throwaway containers.                     |
+
+Every validator runs in a container, so nothing beyond Docker and GNU Make is installed on the host. Each validator
+version is written once, in `docker-compose.yml`, where Dependabot tracks it. Every suppression and threshold is
+written down with its justification and its date: `.hadolint.yaml`, `.dive-ci`, `.dive-ci-shadowed`, and the CIS
+exemptions beside the audit runner in the `Makefile`.
+
+A finding that cannot be fixed locally is disclosed, not hidden. The family publishes an
+[OpenVEX](https://openvex.dev) analysis as a cosign attestation next to every image, and `affected` statements are
+reported rather than silenced. Only Python carries one today, and [its README](images/python/README.md#verification)
+shows how a scanner reads it.
+
+<div id='premises'></div>
+
+## Premises
+
+| Premise                   | What it means                                                                                 |
+|:--------------------------|:----------------------------------------------------------------------------------------------|
+| Exact upstream pins       | Every `FROM` names a patch version and a distro release, and package trees are locked.        |
+| Hermetic builds           | Nothing is fetched at build time without a pinned version and a verified sha256.              |
+| Non-root by default       | Every target an application runs drops to an unprivileged user.                               |
+| Lean layers               | One `RUN` per concern, build-only dependencies deleted in the same layer, `COPY` never `ADD`. |
+| Immutable versioned tags  | Any change to a Dockerfile or its inputs publishes a new version instead of rewriting one.    |
+| A gate before publication | Neither the Makefile nor the CD workflow can publish an unreviewed image.                     |
+
+<div id='development'></div>
+
+## Development
+
+```bash
+git clone https://github.com/gustavofreze/docker-images.git
+cd docker-images
+
+make build       # build every family, or make build-<family>
+make review      # the full gate, or make review-<family>
+make discover    # every build unit and the tags it publishes
+make help        # every other command
+```
+
+[CONTRIBUTING.md](CONTRIBUTING.md) covers the rest: the pull request workflow, the versioning rules, adding a family
+or an upstream version, handling a vulnerability, and how publication works.
 
 <div id='layout'></div>
 
 ### Layout
 
-Every family lives under `images/`, one directory per family. A family holds one self-contained build unit per upstream
-version under an `<upstream-minor>/` subdirectory, plus a family `README.md` one level up as the umbrella. A root
-`scripts/` holds the host-side tooling the Makefile and the workflows run: the smoke library every family sources, the
-automated version bump, the discovery script the workflows build their matrix from, the version guard's changed-unit
-detection, and the documentation check.
+Every family lives under `images/`, with one self-contained build unit per upstream minor and a family `README.md` one
+level up.
+
+<details>
+<summary>Repository tree</summary>
 
 ```
 docker-images/
@@ -71,13 +209,14 @@ docker-images/
 │   └── python.yaml
 ├── scripts/
 │   ├── smoke-lib.sh                # shared host-side smoke helpers every family sources
-│   ├── bump-build-unit.sh          # moves a build unit VERSION and every tag its README names
+│   ├── bump-build-unit.sh          # moves a build unit VERSION and every tag and pin its README names
 │   ├── discover-images.sh          # build matrix: one entry per target, read from the Dockerfiles
 │   ├── changed-build-units.sh      # the build units a commit range touches, read by the version guard
 │   └── check-documentation.sh      # asserts every family README still agrees with its build units
 └── images/
     ├── php/
-    │   ├── README.md               # family umbrella: role, versions, targets, consumption
+    │   ├── README.md               # family reference, published as the Docker Hub overview
+    │   ├── DESCRIPTION             # the Docker Hub short description, one line
     │   └── 8.5/                    # build unit for the 8.5 upstream line
     │       ├── Dockerfile          # multi-target: builder, cli, runtime, development
     │       ├── VERSION             # base semantic version for this line
@@ -87,8 +226,9 @@ docker-images/
     │       └── scripts/smoke       # boots throwaway containers, asserts the runtime contract
     ├── python/
     │   ├── README.md
+    │   ├── DESCRIPTION
     │   └── 3.14/                   # build unit for the 3.14 upstream line
-    │       ├── Dockerfile          # multi-target: builder, cli, runtime, development
+    │       ├── Dockerfile
     │       ├── VERSION
     │       ├── .dockerignore
     │       ├── requirements.txt    # the tools the image installs, tracked by Dependabot
@@ -97,241 +237,15 @@ docker-images/
     │       └── scripts/smoke
     └── rust/
         ├── README.md
+        ├── DESCRIPTION
         └── 1.100/                  # build unit for the 1.100 upstream line
-            ├── Dockerfile          # multi-target: builder, cli, runtime, development
+            ├── Dockerfile
             ├── VERSION
             ├── .dockerignore
             └── scripts/smoke
 ```
 
-<div id='installation'></div>
-
-## Installation
-
-<div id='repository'></div>
-
-### Repository
-
-To clone the repository using the command line, run:
-
-```bash
-git clone https://github.com/gustavofreze/docker-images.git
-```
-
-<div id='build'></div>
-
-### Build
-
-To build every image family locally, run:
-
-```bash
-make build
-```
-
-Build a single family with `make build-<family>` (`build-php`, `build-python`, `build-rust`). No registry is involved
-locally. `make discover` prints every build unit and the tags it publishes.
-
-<div id='review'></div>
-
-### Review
-
-To run the full local gate (lint, build, scan, audit, efficiency, smoke), run:
-
-```bash
-make review
-```
-
-Scope the same gate to one family with `make review-<family>`. `make verify` is an alias of
-`make review`. You can check other available commands by running `make help`.
-
-<div id='images'></div>
-
-## Images
-
-| Family | Role                                                 | Versions | Docker Hub                                                          | GitHub Packages                                                                                    | Detail                            |
-|:-------|:-----------------------------------------------------|:---------|:--------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------|:----------------------------------|
-| PHP    | PHP-FPM runtime plus build, development, and cli     | 8.5      | [gustavofreze/php](https://hub.docker.com/r/gustavofreze/php)       | [ghcr.io/gustavofreze/php](https://github.com/gustavofreze/docker-images/pkgs/container/php)       | [README](images/php/README.md)    |
-| Python | Interpreter runtime plus build, development, and cli | 3.14     | [gustavofreze/python](https://hub.docker.com/r/gustavofreze/python) | [ghcr.io/gustavofreze/python](https://github.com/gustavofreze/docker-images/pkgs/container/python) | [README](images/python/README.md) |
-| Rust   | Static binary runtime plus build, development, cli   | 1.100    | [gustavofreze/rust](https://hub.docker.com/r/gustavofreze/rust)     | [ghcr.io/gustavofreze/rust](https://github.com/gustavofreze/docker-images/pkgs/container/rust)     | [README](images/rust/README.md)   |
-
-<div id='targets'></div>
-
-### Targets
-
-Four stage names are the closed vocabulary. Each names what the image is, and a family ships only the stages its role
-calls for.
-
-| Target        | What it is                                                                          | Families          |
-|:--------------|:------------------------------------------------------------------------------------|:------------------|
-| `builder`     | Compilation base a project inherits via `FROM`, discarded in the multi-stage build. | php, python, rust |
-| `runtime`     | Production image the platform runs.                                                 | php, python, rust |
-| `cli`         | Local command-line tooling for one-shot commands, invoked from a project Makefile.  | php, python, rust |
-| `development` | Variant of `runtime` built `FROM runtime`, adding local development tooling.        | php, python, rust |
-
-`development` is subordinate to `runtime`, not a peer of it. It runs on a developer machine and is never deployed. Every
-target except `cli` runs as a non-root last user. The `cli` tooling images keep root as a named, justified exception,
-because they are invoked over a bind mount owned by the caller and must be able to write into it. A `HEALTHCHECK` ships
-only on a target that starts a long-running process of its own. Which targets those are, and what each family bakes into
-them, is documented in that family's README.
-
-<div id='tags'></div>
-
-### Tags
-
-Every published tag is `<upstream-minor>-<role>-<semver>`, where `role` is identical to the stage name:
-
-```
-gustavofreze/<family>:<upstream-minor>-<role>-<V>
-```
-
-- There is no bare tag. A role always sits between the upstream minor and the base version.
-- Version tags are immutable. Any change to a Dockerfile or its inputs bumps `<V>`, and the CI gate fails a pull request
-  that touches a build unit without bumping its `VERSION`.
-- `latest` is forbidden.
-- Each stage also carries one floating alias `<upstream-minor>-<role>` (`8.5-runtime`, `3.14-builder`, `1.100-cli`,
-  and the rest).
-  The monthly rebuild repoints these aliases. Both forms are supported in a project: the versioned tag is reproducible
-  and moves only when you bump it, the alias picks up the monthly security rebuild without a pull request and gives up
-  reproducibility for it. An alias never crosses an upstream minor, so `8.5-runtime` stays on 8.5 after 8.6 ships.
-
-Be precise about what that monthly rebuild can and cannot do. Because every `FROM` pins an exact patch and distro
-release, and the official images publish a new tag rather than rewriting an old one, pulling that pin again always
-returns the same bytes. The rebuild therefore refreshes only the handful of packages this repository installs itself
-through `apk add`, which carry no version pin, and nothing in the inherited base layers or in the PHP and CPython
-binaries. What actually moves the base forward is Dependabot opening a pull request for the next upstream patch, which
-then bumps the build unit `VERSION` and republishes. The rebuild's second job is detection: it scans the published
-versioned tags every month and opens an issue when the advisory names a fixed release and no accepted-risk entry
-covers it for that family. That is narrower than remediable. A fix published upstream still needs an artifact this
-repository can pin, and where none exists yet the answer is an acceptance entry with a VEX statement rather than a
-bump.
-
-<div id='versioning'></div>
-
-### Versioning
-
-Each family keeps one build unit per upstream minor, under an `<upstream-minor>/` subdirectory (`images/php/8.5/`,
-`images/python/3.14/`, `images/rust/1.100/`). A build unit is self-contained: its own `Dockerfile`, `VERSION`,
-configuration, baked scripts, and `scripts/smoke`, with a base semantic version `<V>` that advances independently of
-every other upstream version. PHP 8.5 can sit at `1.3.0` while a future PHP 8.6 sits at `1.0.0`.
-
-Two kinds of upstream change move differently:
-
-- **Minor or major bump** (PHP 8.5 to 8.6, Python 3.14 to 3.15, Rust 1.100 to 1.101). The Dockerfile and its
-  configuration diverge, so the new version is a new sibling subdirectory starting its own `VERSION` at `1.0.0`. The two
-  lines publish in parallel and coexist, and each project migrates on its own schedule. Dependabot is configured never
-  to open this bump, because it would make it in place inside the old subdirectory.
-- **Patch bump** (PHP 8.5.9 to 8.5.10). The upstream pin and the build unit's `VERSION` both move inside the same
-  subdirectory, no new directory.
-
-<div id='publication'></div>
-
-### Publication
-
-Locally, `make publish` pushes the versioned tags, and each `publish-<family>` target lists `review-<family>` as a make
-prerequisite, so the push only happens after lint, build, scan, audit, efficiency, and smoke all passed for the family
-being published. `REGISTRY` defaults to `docker.io` and accepts any other registry (`make publish REGISTRY=ghcr.io`).
-
-In CI, the `CD` workflow runs the same gate before it publishes, on a native `linux/amd64` runner and a native
-`linux/arm64` one, so every architecture that ships was actually built, scanned, audited, and smoke-tested rather than
-only cross-built. It then pushes the immutable versioned tag and the floating alias to Docker Hub and to the GitHub
-container registry.
-
-Version tags are meant to be stable, and the pull request version guard is what holds that: it fails a pull request that
-touches a build unit without bumping its `VERSION`. The publishing job itself does not check the registry, so a push
-straight to `main` republishes whatever tag the build units name, overwriting a tag that is already out there. Route
-changes through a pull request and the guard catches the missing bump before it reaches the registry.
-
-Dependabot writes no `VERSION`, so an update it opens against a build unit would fail that guard every time. The
-`Dependabot version bump` workflow closes the gap instead of weakening the guard: it moves the number and every tag the
-family README names in one commit on the Dependabot branch, and the guard then reads a pull request that already carries
-its bump. It runs on `pull_request_target`, the one event that still hands a Dependabot run a writable token, and pushes
-with a `VERSION_BUMP_TOKEN` repository secret holding `contents: write`, because a push made with the default token
-fires no event and would leave the gate reporting against the pre-bump commit.
-
-A family that carries a finding it cannot fix locally publishes an OpenVEX analysis as a cosign attestation next to
-every image, versioned at `vex/<family>.openvex.json`. It states per CVE whether the image is genuinely affected, and
-`affected` statements are reported rather than silenced: the risk is disclosed, not hidden. Whether the local gate stops
-on one is a separate decision, recorded in `.grype/<family>.yaml` and `.trivy/<family>.yaml` with the date it was
-accepted and the condition that retires it, and never mixed into the analysis. Both files are needed because the two
-scanners name the same finding differently, by GO advisory and by CVE.
-
-A family that carries no such finding publishes none of the three and scans bare, which is the state to aim for rather
-than the exception. Only Python carries any today, and [its README](images/python/README.md) says how to pass the
-document to a scanner. PHP carried eight Go standard library advisories until the docker CLI it copies moved to a
-toolchain that fixed them, and all three files went with them.
-
-<div id='usage-contract'></div>
-
-### Usage contract
-
-A project consumes a base image and adds only its own dependencies, code, and tuning. The concrete snippet for each
-family lives in that family's README. The rules that hold across every family:
-
-1. Choose the tag form deliberately. The full versioned tag is reproducible and is the default for anything that
-   ships. The floating `<upstream-minor>-<role>` alias is supported too, and it trades that reproducibility for the
-   monthly security rebuild arriving without a pull request. `latest` does not exist.
-2. Do not re-declare what the base provides: extensions, the non-root user, hardening, OPcache defaults, the virtual
-   environment path, the health check, the interpreter defaults, the Rust toolchain paths.
-3. Ship a `.dockerignore` next to each Dockerfile, and never copy a secret into a build context.
-4. Build-time credentials enter through a BuildKit secret (`RUN --mount=type=secret,id=<name>`), never through a baked
-   `ARG` or `ENV`.
-5. Dependency layers come before code layers, so a code change does not invalidate the dependency cache.
-
-Where each form fits. `runtime` and `builder` end up in an artifact that ships, so the versioned tag is what keeps a
-rollback reproducible, and Dependabot is what moves it. `cli` and `development` run on a developer machine and produce
-nothing that deploys, so the alias costs little there. Either way an alias moves only when the client re-pulls, so
-`--pull=always` on `docker run` (or `pull_policy: always` in compose) is what actually makes it float.
-
-<div id='self-verification'></div>
-
-### Self-verification
-
-`make review` runs the full local gate in order:
-
-1. **Lint** every Dockerfile with hadolint, with the shell inside each `RUN` checked by ShellCheck, and every standalone
-   shell script with ShellCheck directly at its strictest setting.
-2. **Build** all targets.
-3. **Scan** them with Trivy and with Grype for fixable HIGH and CRITICAL vulnerabilities. Neither scanner is a
-   superset of the other, so both run on every target.
-4. **Audit** each image with Dockle against the CIS Docker Benchmark, per target: the non-root last-user check stays
-   active on every target but the two named `cli` exceptions, and the health check requirement stays active on every
-   target that runs a process of its own. It also checks for orphan setuid and setgid bits, credentials in the
-   environment, `COPY` over `ADD`, and a clean package cache.
-5. **Efficiency** check of the layers with dive against the thresholds in `.dive-ci` (no unpruned build dependency, no
-   forgotten cache). Seven targets are held to `.dive-ci-shadowed` instead, because they replace files that arrived in
-   the upstream base and dive counts a shadowed file as waste no pruning can reach.
-6. **Smoke** the runtime contract in throwaway containers (non-root, extensions, hardening, OPcache mode, health check,
-   pinned tool versions, development tooling present only where it belongs).
-
-Every stage runs in a container: nothing beyond Docker and make is installed on the host. Each validator version is
-written once, in `docker-compose.yml`, which the Makefile reads and Dependabot tracks, so no tool tag can quietly fall
-behind.
-`make review-<family>` scopes the whole gate to a single family. Baseline suppressions and thresholds are documented,
-each with a justification and a date: the lint relaxations in `.hadolint.yaml`, the layer-efficiency thresholds in
-`.dive-ci` and the shadowed-layer variant beside it in `.dive-ci-shadowed`, and the per-target CIS exemptions in the
-Makefile beside the audit runner they apply to.
-
-<div id='adding-a-family'></div>
-
-### Adding a family
-
-Create the build unit under `images/<family>/<upstream-minor>/` mirroring `images/php/8.5/`: a multi-target
-`Dockerfile`, `VERSION`, `.dockerignore`, `conf/` or `bin/` where the family needs them, and a `scripts/smoke` asserting
-the contract. Add a family `README.md` one level up. Then wire the family into the Makefile aggregates (`lint-`,
-`build-`, `scan-`, `audit-`, `efficiency-`, `smoke-`, `publish-`, and `review-<family>`) and run `make review-<family>`
-until it passes. The workflows pick the new targets up automatically, because their matrix comes from
-`scripts/discover-images.sh`.
-
-<div id='adding-an-upstream-version'></div>
-
-### Adding an upstream version
-
-When a family's upstream moves to a new minor, copy the current build unit to a new `<upstream-minor>/` beside it (for
-example `images/php/8.5/` to `images/php/8.6/`), repoint its Dockerfile `FROM` to the new upstream pin, reset its
-`VERSION` to `1.0.0`, and adjust the configuration the new upstream requires. Wire the new version's build, lint, scan,
-audit, efficiency, smoke, and publish steps into the Makefile beside the existing version, list it in the family
-`README.md`, and run `make review-<family>` until it passes. The old version stays untouched, both lines publish in
-parallel, and each project migrates on its own schedule.
+</details>
 
 <div id='license'></div>
 

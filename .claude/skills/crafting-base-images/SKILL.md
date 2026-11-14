@@ -111,13 +111,20 @@ For a new family or target:
    holding the base semantic version, a `.dockerignore` beside it, and `conf/` or `bin/` when the
    family bakes configuration or scripts.
 2. For a new family, add `images/<family>/README.md` one level up as the umbrella, by copying
-   `assets/family-readme.template.md` and filling each slot. This file is pasted verbatim into the
-   Docker Hub repository overview, which renders no HTML and has no repository context, so it carries
-   no anchor `div` and every link in it is absolute. Every family README keeps the template's seven
-   sections in the same order, so a reader finds the same thing in the same place. The template marks
-   the two slots that are conditional: the service subsection exists only for a family whose targets
-   start a long-running process, and the VEX paragraph only for a family that publishes one. Omit a
-   conditional slot rather than inventing content to fill it.
+   `assets/family-readme.template.md` and filling each slot. The `Docker Hub overview` workflow
+   publishes this file as the Docker Hub repository overview, and the `DESCRIPTION` file beside it,
+   one line of at most 100 bytes, as the short description. The overview renders no HTML, resolves no
+   in-page anchor, and has no repository context, so it
+   carries no anchor `div` and no table of contents, and every link in it is absolute. Every family
+   README keeps the template's seven sections in the same order, so a reader finds the same thing in
+   the same place. It is a reference for a consumer, kept short: tables for tags, variants and the
+   gate, one or two lines per provision, and no maintainer reasoning, which lives in the rule. Name in
+   backticks only the pins of the family's own base images, because those are the ones the
+   documentation check and the automated bump keep in step with the Dockerfile. The template marks the
+   slots that are conditional: the service subsection and the health check column exist only for a
+   family whose targets start a long-running process, and the VEX paragraph only for a family that
+   publishes one. Omit a conditional slot rather than inventing content to fill it. Add the family to
+   the images table of the root README as well.
 3. Write `scripts/smoke` sourcing the shared library and asserting what each target's class promises,
    per § Smoke contract.
 4. Pin the upstream image to an exact tag (patch and distro release).

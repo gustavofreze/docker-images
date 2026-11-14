@@ -3,9 +3,10 @@ set -euo pipefail
 
 # check-documentation.sh: Asserts the family READMEs agree with the build units they describe.
 #
-# Those READMEs are pasted verbatim into the Docker Hub overview, so a stale tag there tells a consumer
+# Those READMEs are published verbatim as the Docker Hub overview, so a stale tag there tells a consumer
 # to pin a version that is no longer current. Nothing else compares them against the source, and a
-# version bump touches many more lines of prose than of build input.
+# version bump touches many more lines of prose than of build input. The DESCRIPTION file beside each
+# one is the short description of the same repository, which Docker Hub cuts at a fixed length.
 #
 # The checks read tokens rather than table positions, because the same tag appears bare in a table, in
 # a fenced Dockerfile snippet and inside a shell command, and a version bump has to move all of them.
@@ -16,6 +17,7 @@ set -euo pipefail
 #   None. Runs from the repository root and checks every family it finds.
 
 readonly IMAGES_DIRECTORY="images"
+readonly DESCRIPTION_LIMIT=100
 
 report() {
     local message="${1:?Usage: report <message>}"
@@ -93,6 +95,23 @@ check_upstream_pins() {
     return "${failures}"
 }
 
+check_description() {
+    local description="${1:?Usage: check_description <description file>}"
+    local length
+
+    [[ -f "${description}" ]] || {
+        report "${description}: missing, the Docker Hub short description is read from it"
+        return 1
+    }
+
+    length="$(head -n 1 "${description}" | tr -d '\n' | wc -c)"
+
+    [[ "$(wc -l < "${description}")" -eq 1 && "${length}" -gt 0 && "${length}" -le "${DESCRIPTION_LIMIT}" ]] || {
+        report "${description}: must be one line of at most ${DESCRIPTION_LIMIT} bytes, and it holds ${length}"
+        return 1
+    }
+}
+
 check_family() {
     local readme="${1:?Usage: check_family <readme>}"
     local family
@@ -103,6 +122,7 @@ check_family() {
 
     check_tags "${readme}" "${family}" || failures=1
     check_upstream_pins "${readme}" "${family}" || failures=1
+    check_description "$(dirname "${readme}")/DESCRIPTION" || failures=1
 
     return "${failures}"
 }

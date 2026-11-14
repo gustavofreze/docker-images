@@ -1,17 +1,8 @@
 # gustavofreze/python
 
 Hardened, reproducible Python base images. One Dockerfile per upstream version ships four targets: the production
-`runtime`, its `development` variant, the `builder` toolchain for a project's production build, and a `cli` tooling
-image a project Makefile invokes. Non-root and hardened where an application runs it, root only where a local tooling
-image needs to write into a bind mount.
-
-* [Quick reference](#quick-reference)
-* [Supported tags](#supported-tags)
-* [Image variants](#image-variants)
-* [What it provides](#what-it-provides)
-* [How to use this image](#how-to-use-this-image)
-* [Verification](#verification)
-* [License](#license)
+`runtime`, its `development` variant, the `builder` for a project's production build, and a `cli` tooling image a
+project Makefile invokes.
 
 ## Quick reference
 
@@ -25,62 +16,59 @@ image needs to write into a bind mount.
 
 ## Supported tags
 
-Every tag is `<upstream-minor>-<target>-<version>`. There is no bare tag and `latest` is forbidden. Version tags are
-immutable, so any change to a Dockerfile or its inputs publishes a new `<version>` instead of rewriting one. Each
-target also carries a floating alias, and a project may take either form.
+| Tag                       | Alias              | Purpose                                                       |
+|:--------------------------|:-------------------|:--------------------------------------------------------------|
+| `3.14-runtime-1.0.12`     | `3.14-runtime`     | Production interpreter. No compiler, no installer, no Poetry. |
+| `3.14-development-1.0.12` | `3.14-development` | Local development: runtime plus Poetry, debugpy, bash, git.   |
+| `3.14-builder-1.0.12`     | `3.14-builder`     | Poetry and the C toolchain for the builder stage of an image. |
+| `3.14-cli-1.0.12`         | `3.14-cli`         | Makefile tooling: Poetry, git, bash, curl.                    |
 
-| Tag                       | Alias              | Target        | Purpose                                                       |
-|:--------------------------|:-------------------|:--------------|:--------------------------------------------------------------|
-| `3.14-runtime-1.0.12`     | `3.14-runtime`     | `runtime`     | Production interpreter. No compiler, no installer, no Poetry. |
-| `3.14-development-1.0.12` | `3.14-development` | `development` | Development runtime: runtime plus Poetry, debugpy, bash, git. |
-| `3.14-builder-1.0.12`     | `3.14-builder`     | `builder`     | Poetry and the C toolchain for the builder stage of an image. |
-| `3.14-cli-1.0.12`         | `3.14-cli`         | `cli`         | Makefile tooling: Poetry, git, bash, curl.                    |
+Every tag is `<upstream-minor>-<target>-<version>`. There is no bare tag and `latest` is forbidden.
+
+- **Versioned tag.** Immutable and reproducible. It moves only when you bump it, so take it for anything that ships.
+- **Alias.** Tracks the latest rebuild of its target, the monthly security rebuild included, and never crosses an
+  upstream minor: `3.14-runtime` stays on 3.14. It moves only when the client re-pulls, which suits `cli` and local
+  development.
 
 All four are built from one multi-target
 [Dockerfile](https://github.com/gustavofreze/docker-images/blob/main/images/python/3.14/Dockerfile), pinned to
-`python:3.14.10-alpine3.24`. The alias tracks the latest rebuild of its target and never crosses an upstream minor, so
-`3.14-runtime` stays on 3.14. Take the versioned tag for anything that ships, because it is reproducible and moves only
-when you bump it. Take the alias when the monthly security rebuild arriving without a pull request is worth more than
-that, which is usually the case for `cli` and for local development. An alias moves only when the client re-pulls.
+`python:3.14.10-alpine3.24`. The tools it installs are pinned in
+[requirements.txt](https://github.com/gustavofreze/docker-images/blob/main/images/python/3.14/requirements.txt), and
+the whole tree they resolve to in the constraints file beside it.
 
 ## Image variants
 
-`development` is subordinate to `runtime`, built `FROM runtime`. It runs on a developer machine and is never deployed.
-`runtime`, `development`, and `builder` all drop to the `app` user (uid 1000), whose home is the `/app` working
-directory it owns. The `builder` keeps the C toolchain on purpose, because it is the stage a project compiles its wheels
-in, and the multi-stage application build discards it. The `cli` is a root-only tooling image so it can write into a
-bind mount owned by the caller.
+| Target        | Runs as          | On top of the base                                                     |
+|:--------------|:-----------------|:-----------------------------------------------------------------------|
+| `runtime`     | `app` (uid 1000) | Nothing. pip is uninstalled, and there is no compiler and no Poetry.   |
+| `development` | `app` (uid 1000) | `runtime` plus pip, Poetry 2, debugpy, bash, git.                      |
+| `builder`     | `app` (uid 1000) | pip, Poetry 2, git, and a C toolchain for packages with no musl wheel. |
+| `cli`         | root             | `builder` plus bash and curl.                                          |
 
-No target ships a `HEALTHCHECK`. These are language bases, not services: none of them starts a long-running process of
-its own, so there is no liveness contract to probe. The application that inherits the runtime declares the health check
-for the process it actually runs. No target exposes a port.
+- `development` is built `FROM runtime`. It runs on a developer machine and is never deployed.
+- `builder` keeps the C toolchain (`build-base`, `libffi-dev`, `openssl-dev`, `linux-headers`) on purpose. It is the
+  stage a project compiles its wheels in, and the multi-stage application build discards it.
+- `cli` stays root so it can write into a bind mount owned by the caller.
+- No target ships a `HEALTHCHECK` or exposes a port. These are language bases, not services, so the application that
+  inherits the runtime declares the health check for the process it actually runs.
 
 ## What it provides
 
 Every image provides, and no consuming Dockerfile re-declares:
 
-- A non-root runtime: the `app` user (uid 1000) with `WORKDIR /app` owned by it.
-- A current openssl. The upstream base ships whatever `libcrypto3` and `libssl3` were current when it was tagged,
-  and those age in place between base releases, so every image here upgrades them to what the Alpine index serves
-  at build time. A consuming Dockerfile does not need to repeat it.
-- The project-local virtual environment on `PATH` (`/app/.venv/bin`) with `VIRTUAL_ENV` set, so a stage that ran
-  `poetry install` reaches its dependencies with no activation step and the runtime resolves the very same path.
-- Container-correct interpreter defaults: `PYTHONUNBUFFERED` so a crash loses no log line, `PYTHONDONTWRITEBYTECODE` so
-  nothing is written into a bind mount or a read-only layer, and `PYTHONFAULTHANDLER` in the runtime so a fatal signal
-  prints a traceback.
-- No installer in production. The `runtime` target uninstalls pip, which is the largest dependency tree the base image
-  carries (CacheControl, requests, urllib3, msgpack, a vendored setuptools) and is unreachable from an application
-  running a virtual environment the builder already populated. The `ensurepip` wheel stays in place, so
-  `python3 -m ensurepip` restores the installer for the rare consumer that needs it. `builder`, `development`, and `cli`
-  all ship pip 26.3, cacheless and quiet (`PIP_NO_CACHE_DIR`, `PIP_DISABLE_PIP_VERSION_CHECK`).
-- In `builder` and `cli`: Poetry 2.5.1 configured to build the virtual environment inside the project
-  (`POETRY_VIRTUALENVS_IN_PROJECT`), plus git and the C toolchain (`build-base`, `libffi-dev`, `openssl-dev`,
-  `linux-headers`) for packages with no musl wheel.
-- In `development` only: Poetry 2.5.1, debugpy 1.8.22, bash, and git, with the compiler that built debugpy pruned in the
-  same layer.
-
-The `cli` variant adds bash and curl on top of the builder, and stays root so it can write into a bind-mounted project
-directory owned by the caller.
+- **A non-root runtime.** The `app` user (uid 1000), whose home is the `/app` working directory it owns.
+- **Current system libraries.** openssl, libuuid, and zlib are upgraded to what the Alpine index serves at build time,
+  instead of aging in place between base releases.
+- **The virtual environment on `PATH`.** `/app/.venv/bin` with `VIRTUAL_ENV` set, so a stage that ran `poetry install`
+  reaches its dependencies with no activation step and the runtime resolves the very same path.
+- **Container-correct interpreter defaults.** `PYTHONUNBUFFERED` so a crash loses no log line,
+  `PYTHONDONTWRITEBYTECODE` so nothing is written into a bind mount or a read-only layer, and `PYTHONFAULTHANDLER` in
+  the runtime so a fatal signal prints a traceback.
+- **No installer in production.** The `runtime` uninstalls pip, the largest dependency tree the base image carries,
+  which an application running a virtual environment never reaches. The `ensurepip` wheel stays in place, so
+  `python3 -m ensurepip` restores the installer for the rare consumer that needs it.
+- **A cacheless, quiet pip** wherever pip ships (`PIP_NO_CACHE_DIR`, `PIP_DISABLE_PIP_VERSION_CHECK`).
+- **Poetry building inside the project** (`POETRY_VIRTUALENVS_IN_PROJECT`), in `builder`, `cli`, and `development`.
 
 ## How to use this image
 
@@ -123,12 +111,20 @@ The rules that hold across every family live in the
 
 ## Verification
 
-No tag is published before it passes the full gate: hadolint and ShellCheck on every Dockerfile and `RUN` body, a Trivy
-and Grype scan for fixable HIGH and CRITICAL vulnerabilities, a Dockle audit against the CIS Docker Benchmark, a dive
-layer-efficiency check, and a smoke suite that boots throwaway containers and asserts the runtime contract (non-root
-user, interpreter defaults, virtual environment on `PATH`, pinned tool versions, and no installer or compiler in the
-production surface). The gate runs on a native `linux/amd64` runner and a native `linux/arm64` one, so every
-architecture that ships was actually built, scanned, audited, and smoke-tested.
+No tag is published before it passes the full
+[gate](https://github.com/gustavofreze/docker-images#verification-gate), on a native `linux/amd64` runner and a native
+`linux/arm64` one:
+
+| Stage      | Tool                 | What it checks                                 |
+|:-----------|:---------------------|:-----------------------------------------------|
+| Lint       | hadolint, ShellCheck | Every Dockerfile and every `RUN` body.         |
+| Scan       | Trivy and Grype      | Fixable HIGH and CRITICAL vulnerabilities.     |
+| Audit      | Dockle               | The CIS Docker Benchmark.                      |
+| Efficiency | dive                 | Wasted layer space.                            |
+| Smoke      | throwaway containers | The runtime contract, in throwaway containers. |
+
+The smoke suite asserts the non-root user, the interpreter defaults, the virtual environment on `PATH`, the pinned tool
+versions, and the absence of an installer or a compiler in the production surface.
 
 Every tag also carries an [OpenVEX](https://openvex.dev) analysis as a cosign attestation, stating per CVE whether the
 image is genuinely affected. A scanner that reads it applies the analysis on its own:
