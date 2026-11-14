@@ -31,14 +31,14 @@ target also carries a floating alias, and a project may take either form.
 
 | Tag                       | Alias              | Target        | Purpose                                                       |
 |:--------------------------|:-------------------|:--------------|:--------------------------------------------------------------|
-| `3.14-runtime-1.0.11`     | `3.14-runtime`     | `runtime`     | Production interpreter. No compiler, no installer, no Poetry. |
-| `3.14-development-1.0.11` | `3.14-development` | `development` | Development runtime: runtime plus Poetry, debugpy, bash, git. |
-| `3.14-builder-1.0.11`     | `3.14-builder`     | `builder`     | Poetry and the C toolchain for the builder stage of an image. |
-| `3.14-cli-1.0.11`         | `3.14-cli`         | `cli`         | Makefile tooling: Poetry, git, bash, curl.                    |
+| `3.14-runtime-1.0.12`     | `3.14-runtime`     | `runtime`     | Production interpreter. No compiler, no installer, no Poetry. |
+| `3.14-development-1.0.12` | `3.14-development` | `development` | Development runtime: runtime plus Poetry, debugpy, bash, git. |
+| `3.14-builder-1.0.12`     | `3.14-builder`     | `builder`     | Poetry and the C toolchain for the builder stage of an image. |
+| `3.14-cli-1.0.12`         | `3.14-cli`         | `cli`         | Makefile tooling: Poetry, git, bash, curl.                    |
 
 All four are built from one multi-target
 [Dockerfile](https://github.com/gustavofreze/docker-images/blob/main/images/python/3.14/Dockerfile), pinned to
-`python:3.14.9-alpine3.24`. The alias tracks the latest rebuild of its target and never crosses an upstream minor, so
+`python:3.14.10-alpine3.24`. The alias tracks the latest rebuild of its target and never crosses an upstream minor, so
 `3.14-runtime` stays on 3.14. Take the versioned tag for anything that ships, because it is reproducible and moves only
 when you bump it. Take the alias when the monthly security rebuild arriving without a pull request is worth more than
 that, which is usually the case for `cli` and for local development. An alias moves only when the client re-pulls.
@@ -72,7 +72,7 @@ Every image provides, and no consuming Dockerfile re-declares:
   carries (CacheControl, requests, urllib3, msgpack, a vendored setuptools) and is unreachable from an application
   running a virtual environment the builder already populated. The `ensurepip` wheel stays in place, so
   `python3 -m ensurepip` restores the installer for the rare consumer that needs it. `builder`, `development`, and `cli`
-  all ship pip 26.2.2, cacheless and quiet (`PIP_NO_CACHE_DIR`, `PIP_DISABLE_PIP_VERSION_CHECK`).
+  all ship pip 26.3, cacheless and quiet (`PIP_NO_CACHE_DIR`, `PIP_DISABLE_PIP_VERSION_CHECK`).
 - In `builder` and `cli`: Poetry 2.5.1 configured to build the virtual environment inside the project
   (`POETRY_VIRTUALENVS_IN_PROJECT`), plus git and the C toolchain (`build-base`, `libffi-dev`, `openssl-dev`,
   `linux-headers`) for packages with no musl wheel.
@@ -90,18 +90,18 @@ A project consumes the base in two thin files and adds only its own dependencies
 
 ```dockerfile
 # syntax=docker/dockerfile:1
-FROM gustavofreze/python:3.14-development-1.0.11
+FROM gustavofreze/python:3.14-development-1.0.12
 COPY ./ /app
 ```
 
 ```dockerfile
 # syntax=docker/dockerfile:1
-FROM gustavofreze/python:3.14-builder-1.0.11 AS builder
+FROM gustavofreze/python:3.14-builder-1.0.12 AS builder
 COPY pyproject.toml poetry.lock ./
 RUN poetry install --no-root --only main
 COPY ./ ./
 
-FROM gustavofreze/python:3.14-runtime-1.0.11
+FROM gustavofreze/python:3.14-runtime-1.0.12
 COPY --from=builder --chown=app:app /app /app
 CMD ["python3", "-m", "your_application"]
 ```
@@ -114,8 +114,8 @@ installed without activating anything.
 The `cli` image is invoked directly and never appears in a Dockerfile:
 
 ```shell
-docker run --rm -v "$(pwd)":/app gustavofreze/python:3.14-cli-1.0.11 poetry install
-docker run --rm -v "$(pwd)":/app gustavofreze/python:3.14-cli-1.0.11 python3 your-script.py
+docker run --rm -v "$(pwd)":/app gustavofreze/python:3.14-cli-1.0.12 poetry install
+docker run --rm -v "$(pwd)":/app gustavofreze/python:3.14-cli-1.0.12 python3 your-script.py
 ```
 
 The rules that hold across every family live in the
@@ -134,7 +134,7 @@ Every tag also carries an [OpenVEX](https://openvex.dev) analysis as a cosign at
 image is genuinely affected. A scanner that reads it applies the analysis on its own:
 
 ```shell
-trivy image --vex oci gustavofreze/python:3.14-runtime-1.0.11
+trivy image --vex oci gustavofreze/python:3.14-runtime-1.0.12
 ```
 
 `affected` statements are reported, not silenced, which is the point: the risk is disclosed rather than hidden. The

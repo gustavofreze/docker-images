@@ -1,6 +1,7 @@
 # What the builder and the cli install. Pinned here rather than in a Dockerfile ARG so an updater can
-# see them: the pip ecosystem reads this file, and reads constraints.txt beside it as a manifest of
-# its own. The Dockerfile applies that file with --constraint, and it holds the resolved tree behind
-# these two lines. Nothing in that tree moves on its own, so regenerate it whenever a pin here moves.
-pip==26.2.2
+# see them: the pip ecosystem reads this file, and dependabot.yml allows it to move these and nothing
+# else. The Dockerfile applies constraints.txt beside it with --constraint, and it holds the resolved
+# tree behind these two lines. Nothing in that tree moves on its own, so regenerate it whenever a pin
+# here moves.
+pip==26.3
 poetry==2.5.1

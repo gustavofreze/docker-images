@@ -32,6 +32,16 @@ PYTHON_RUNTIME_TAG     := $(PYTHON_NAMESPACE):$(PYTHON_MINOR)-runtime-$(PYTHON_V
 PYTHON_DEVELOPMENT_TAG := $(PYTHON_NAMESPACE):$(PYTHON_MINOR)-development-$(PYTHON_VERSION)
 PYTHON_CLI_TAG         := $(PYTHON_NAMESPACE):$(PYTHON_MINOR)-cli-$(PYTHON_VERSION)
 
+# ---- Rust image coordinates -------------------------------------------------
+RUST_MINOR     := 1.100
+RUST_VERSION   := $(shell cat images/rust/1.100/VERSION)
+RUST_NAMESPACE := gustavofreze/rust
+
+RUST_BUILDER_TAG     := $(RUST_NAMESPACE):$(RUST_MINOR)-builder-$(RUST_VERSION)
+RUST_RUNTIME_TAG     := $(RUST_NAMESPACE):$(RUST_MINOR)-runtime-$(RUST_VERSION)
+RUST_DEVELOPMENT_TAG := $(RUST_NAMESPACE):$(RUST_MINOR)-development-$(RUST_VERSION)
+RUST_CLI_TAG         := $(RUST_NAMESPACE):$(RUST_MINOR)-cli-$(RUST_VERSION)
+
 # ---- Publication (REGISTRY=ghcr.io for the GitHub registry) -----------------
 REGISTRY ?= docker.io
 
@@ -86,9 +96,14 @@ trivy_flag   = $(if $(wildcard .trivy/$(1).yaml),--ignorefile /policy.yaml)
 # Two scanners on purpose. Trivy reads the distro security database, Grype cross-references upstream
 # advisories and Go module data, and neither is a superset of the other: Grype caught a HIGH in the
 # Go stdlib of a vendored binary that Trivy reported clean. A single scanner is not coverage.
+#
+# GRYPE_DB_CACHE_DIR is what makes the cache volume a cache. The Grype image sets no HOME, so its
+# default database path resolves to /.cache/grype/db, outside the mount, and every scan downloaded the
+# whole database again while the volume stayed empty.
 GRYPE_RUN = docker run --rm \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -v gustavofreze-grype-cache:/root/.cache/grype \
+    -e GRYPE_DB_CACHE_DIR=/root/.cache/grype/db \
     -v $(CURDIR)/vex:/vex:ro \
     $(call grype_policy,$(1)) \
     $(GRYPE_IMAGE) --only-fixed --fail-on high $(call vex_flag,$(1))
@@ -217,8 +232,13 @@ lint-python: lint-scripts lint-docs ## @verify Lint the Python Dockerfile, every
 	@echo "[lint] images/python/3.14/Dockerfile"
 	@$(HADOLINT_RUN) < images/python/3.14/Dockerfile
 
+.PHONY: lint-rust
+lint-rust: lint-scripts lint-docs ## @verify Lint the Rust Dockerfile, every shell script, and the READMEs
+	@echo "[lint] images/rust/1.100/Dockerfile"
+	@$(HADOLINT_RUN) < images/rust/1.100/Dockerfile
+
 .PHONY: build
-build: build-php build-python ## @build Build every image family
+build: build-php build-python build-rust ## @build Build every image family
 
 .PHONY: build-php
 build-php: ## @build Build the PHP builder, runtime, development, and cli images
@@ -234,8 +254,15 @@ build-python: ## @build Build the Python builder, runtime, development, and cli 
 	@docker build --target development -t $(PYTHON_DEVELOPMENT_TAG) -t $(PYTHON_NAMESPACE):$(PYTHON_MINOR)-development images/python/3.14
 	@docker build --target cli         -t $(PYTHON_CLI_TAG)         -t $(PYTHON_NAMESPACE):$(PYTHON_MINOR)-cli         images/python/3.14
 
+.PHONY: build-rust
+build-rust: ## @build Build the Rust builder, runtime, development, and cli images
+	@docker build --target builder     -t $(RUST_BUILDER_TAG)     -t $(RUST_NAMESPACE):$(RUST_MINOR)-builder     images/rust/1.100
+	@docker build --target runtime     -t $(RUST_RUNTIME_TAG)     -t $(RUST_NAMESPACE):$(RUST_MINOR)-runtime     images/rust/1.100
+	@docker build --target development -t $(RUST_DEVELOPMENT_TAG) -t $(RUST_NAMESPACE):$(RUST_MINOR)-development images/rust/1.100
+	@docker build --target cli         -t $(RUST_CLI_TAG)         -t $(RUST_NAMESPACE):$(RUST_MINOR)-cli         images/rust/1.100
+
 .PHONY: scan
-scan: scan-php scan-python ## @verify Scan every image family for HIGH and CRITICAL vulnerabilities
+scan: scan-php scan-python scan-rust ## @verify Scan every image family for HIGH and CRITICAL vulnerabilities
 
 .PHONY: scan-php
 scan-php: ## @verify Scan the PHP images for HIGH and CRITICAL vulnerabilities
@@ -259,8 +286,16 @@ scan-python: ## @verify Scan the Python images for HIGH and CRITICAL vulnerabili
 		$(call GRYPE_RUN,python) "$${tag}"
 	done
 
+.PHONY: scan-rust
+scan-rust: ## @verify Scan the Rust images for HIGH and CRITICAL vulnerabilities
+	@for tag in $(RUST_RUNTIME_TAG) $(RUST_DEVELOPMENT_TAG) $(RUST_BUILDER_TAG) $(RUST_CLI_TAG); do
+		echo "[scan] $${tag}"
+		$(call TRIVY_RUN,rust) "$${tag}"
+		$(call GRYPE_RUN,rust) "$${tag}"
+	done
+
 .PHONY: audit
-audit: audit-php audit-python ## @verify Audit every image against the CIS Docker Benchmark
+audit: audit-php audit-python audit-rust ## @verify Audit every image against the CIS Docker Benchmark
 
 .PHONY: audit-php
 audit-php: ## @verify Audit the PHP images against the CIS Docker Benchmark
@@ -276,8 +311,15 @@ audit-python: ## @verify Audit the Python images against the CIS Docker Benchmar
 	@$(DOCKLE_RUN_PYTHON) $(PYTHON_BUILDER_TAG)
 	@$(DOCKLE_RUN_PYTHON_ROOT) $(PYTHON_CLI_TAG)
 
+.PHONY: audit-rust
+audit-rust: ## @verify Audit the Rust images against the CIS Docker Benchmark
+	@$(DOCKLE_RUN_NO_PROCESS) $(RUST_RUNTIME_TAG)
+	@$(DOCKLE_RUN_NO_PROCESS) $(RUST_DEVELOPMENT_TAG)
+	@$(DOCKLE_RUN_NO_PROCESS) $(RUST_BUILDER_TAG)
+	@$(DOCKLE_RUN_ROOT) $(RUST_CLI_TAG)
+
 .PHONY: efficiency
-efficiency: efficiency-php efficiency-python ## @verify Check the layer efficiency of every image
+efficiency: efficiency-php efficiency-python efficiency-rust ## @verify Check the layer efficiency of every image
 
 .PHONY: efficiency-php
 efficiency-php: ## @verify Check the layer efficiency of the PHP images
@@ -293,8 +335,15 @@ efficiency-python: ## @verify Check the layer efficiency of the Python images
 	@$(DIVE_RUN_SHADOWED) $(PYTHON_BUILDER_TAG)
 	@$(DIVE_RUN_SHADOWED) $(PYTHON_CLI_TAG)
 
+.PHONY: efficiency-rust
+efficiency-rust: ## @verify Check the layer efficiency of the Rust images
+	@$(DIVE_RUN) $(RUST_RUNTIME_TAG)
+	@$(DIVE_RUN) $(RUST_DEVELOPMENT_TAG)
+	@$(DIVE_RUN) $(RUST_BUILDER_TAG)
+	@$(DIVE_RUN) $(RUST_CLI_TAG)
+
 .PHONY: smoke
-smoke: smoke-php smoke-python ## @verify Boot throwaway containers and assert the runtime contract
+smoke: smoke-php smoke-python smoke-rust ## @verify Boot throwaway containers and assert the runtime contract
 
 .PHONY: smoke-php
 smoke-php: ## @verify Boot throwaway PHP containers and assert the runtime contract
@@ -303,6 +352,10 @@ smoke-php: ## @verify Boot throwaway PHP containers and assert the runtime contr
 .PHONY: smoke-python
 smoke-python: ## @verify Boot throwaway Python containers and assert the runtime contract
 	@bash images/python/3.14/scripts/smoke $(PYTHON_RUNTIME_TAG) $(PYTHON_DEVELOPMENT_TAG) $(PYTHON_BUILDER_TAG) $(PYTHON_CLI_TAG)
+
+.PHONY: smoke-rust
+smoke-rust: ## @verify Boot throwaway Rust containers and assert the runtime contract
+	@bash images/rust/1.100/scripts/smoke $(RUST_RUNTIME_TAG) $(RUST_DEVELOPMENT_TAG) $(RUST_BUILDER_TAG) $(RUST_CLI_TAG)
 
 .PHONY: review
 review: lint build scan audit efficiency smoke ## @verify Full local gate: lint, build, scan, audit, efficiency, smoke
@@ -313,6 +366,9 @@ review-php: lint-php build-php scan-php audit-php efficiency-php smoke-php ## @v
 .PHONY: review-python
 review-python: lint-python build-python scan-python audit-python efficiency-python smoke-python ## @verify Full gate scoped to the Python family
 
+.PHONY: review-rust
+review-rust: lint-rust build-rust scan-rust audit-rust efficiency-rust smoke-rust ## @verify Full gate scoped to the Rust family
+
 .PHONY: verify
 verify: review ## @verify Alias of review: run the full local gate
 
@@ -320,7 +376,7 @@ verify: review ## @verify Alias of review: run the full local gate
 # review-<family> as a prerequisite, so a push cannot happen before that family passed the gate. Only
 # the immutable versioned tags go out here, the CD workflow owns the floating aliases.
 .PHONY: publish
-publish: publish-php publish-python ## @publish Push every family's versioned tags to REGISTRY, each gated by its review chain
+publish: publish-php publish-python publish-rust ## @publish Push every family's versioned tags to REGISTRY, each gated by its review chain
 
 .PHONY: publish-php
 publish-php: review-php ## @publish Push the versioned PHP tags to REGISTRY, gated by review-php
@@ -332,6 +388,13 @@ publish-php: review-php ## @publish Push the versioned PHP tags to REGISTRY, gat
 .PHONY: publish-python
 publish-python: review-python ## @publish Push the versioned Python tags to REGISTRY, gated by review-python
 	@for tag in $(PYTHON_BUILDER_TAG) $(PYTHON_RUNTIME_TAG) $(PYTHON_DEVELOPMENT_TAG) $(PYTHON_CLI_TAG); do
+		docker tag "$${tag}" "$(REGISTRY)/$${tag}"
+		docker push "$(REGISTRY)/$${tag}"
+	done
+
+.PHONY: publish-rust
+publish-rust: review-rust ## @publish Push the versioned Rust tags to REGISTRY, gated by review-rust
+	@for tag in $(RUST_BUILDER_TAG) $(RUST_RUNTIME_TAG) $(RUST_DEVELOPMENT_TAG) $(RUST_CLI_TAG); do
 		docker tag "$${tag}" "$(REGISTRY)/$${tag}"
 		docker push "$(REGISTRY)/$${tag}"
 	done

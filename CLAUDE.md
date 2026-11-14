@@ -1,6 +1,6 @@
 # Project
 
-Public container base images for PHP and Python projects, published to Docker Hub and to the GitHub
+Public container base images for PHP, Python, and Rust projects, published to Docker Hub and to the GitHub
 container registry. This repository is the single source for what is replicable across projects: base
 images, their configuration, and the verification gate. Nothing here is project-specific and no
 application code ever enters an image.
@@ -9,7 +9,7 @@ application code ever enters an image.
 
 Everything runs through the `Makefile`. Run `make help` for the full list.
 
-- `make build`. Build every image family (PHP and Python, each with `builder`, `runtime`,
+- `make build`. Build every image family (PHP, Python, and Rust, each with `builder`, `runtime`,
   `development`, and `cli` targets).
 - `make review`. The full local gate, in order: lint every Dockerfile, build, scan for HIGH and
   CRITICAL vulnerabilities, audit each image against the CIS Docker Benchmark, check layer
@@ -23,10 +23,11 @@ Every validator runs in a container: nothing beyond Docker and make is installed
 
 ## Structure
 
-Every image family lives under `images/`, one directory per family (`php/`, `python/`). Each family
-holds one self-contained build unit per upstream minor under an `<upstream-minor>/` subdirectory
-(`images/php/8.5/`, `images/python/3.14/`), shipping a multi-target `Dockerfile`, a `VERSION` file,
-its configuration or baked scripts, a `.dockerignore`, and a `scripts/smoke` assertion script. A root
+Every image family lives under `images/`, one directory per family (`php/`, `python/`, `rust/`). Each
+family holds one self-contained build unit per upstream minor under an `<upstream-minor>/` subdirectory
+(`images/php/8.5/`, `images/python/3.14/`, `images/rust/1.100/`), shipping a multi-target `Dockerfile`,
+a `VERSION` file, its configuration or baked scripts, a `.dockerignore`, and a `scripts/smoke` assertion
+script. A root
 `scripts/` holds the host-side tooling the Makefile and the workflows run: the smoke library every
 family sources, the automated version bump, the discovery script the CI and CD workflows build their
 matrix from, the version guard's changed-unit detection, and the documentation check. The README

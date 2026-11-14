@@ -29,12 +29,12 @@ Every tag is `<upstream-minor>-<target>-<version>`. There is no bare tag and `la
 immutable, so any change to a Dockerfile or its inputs publishes a new `<version>` instead of rewriting one. Each
 target also carries a floating alias, and a project may take either form.
 
-| Tag                     | Alias             | Target        | Purpose                                                         |
-|:------------------------|:------------------|:--------------|:----------------------------------------------------------------|
-| `8.5-runtime-1.0.10`     | `8.5-runtime`     | `runtime`     | Production PHP-FPM runtime.                                     |
-| `8.5-development-1.0.10` | `8.5-development` | `development` | Development runtime: runtime plus Xdebug, Composer, bash, git.  |
-| `8.5-builder-1.0.10`     | `8.5-builder`     | `builder`     | Composer toolchain for the builder stage of a production image. |
-| `8.5-cli-1.0.10`         | `8.5-cli`         | `cli`         | Makefile tooling: Composer, Xdebug coverage, linters, docker.   |
+| Tag                      | Alias             | Target        | Purpose                                                         |
+|:-------------------------|:------------------|:--------------|:----------------------------------------------------------------|
+| `8.5-runtime-1.0.11`     | `8.5-runtime`     | `runtime`     | Production PHP-FPM runtime.                                     |
+| `8.5-development-1.0.11` | `8.5-development` | `development` | Development runtime: runtime plus Xdebug, Composer, bash, git.  |
+| `8.5-builder-1.0.11`     | `8.5-builder`     | `builder`     | Composer toolchain for the builder stage of a production image. |
+| `8.5-cli-1.0.11`         | `8.5-cli`         | `cli`         | Makefile tooling: Composer, Xdebug coverage, linters, docker.   |
 
 All four are built from one multi-target
 [Dockerfile](https://github.com/gustavofreze/docker-images/blob/main/images/php/8.5/Dockerfile), pinned to
@@ -64,9 +64,10 @@ Every image provides, and no consuming Dockerfile re-declares:
 - Extensions: the official image set (curl, sodium, mbstring, and the rest) plus `bcmath`, `pdo_mysql`, and `zip`, built
   with no leftover build dependencies.
 - A non-root runtime: PHP-FPM runs as `www-data`, `WORKDIR /var/www/html` owned by it.
-- A current openssl and curl. The upstream base ships whatever `libcrypto3`, `libssl3`, `openssl`, `curl`, `libcurl`,
-  and `brotli-libs` were current when it was tagged, and those age in place between base releases, so every image here
-  upgrades them to what the Alpine index serves at build time. A consuming Dockerfile does not need to repeat it.
+- A current openssl, curl, and zlib. The upstream base ships whatever `libcrypto3`, `libssl3`, `openssl`, `curl`,
+  `libcurl`, `brotli-libs`, and `zlib` were current when it was tagged, and those age in place between base releases,
+  so every image here upgrades them to what the Alpine index serves at build time. A consuming Dockerfile does not need
+  to repeat it.
 - Production hardening: `php.ini-production` active (the development template is deleted), `expose_php` and
   `display_errors` off, `allow_url_include` off, arguments stripped from exception traces, strict and transport-locked
   session cookies, session upload progress disabled, and the process escape functions (`exec`, `shell_exec`, `system`, `proc_open`, `popen`, `passthru`)
@@ -77,10 +78,10 @@ Every image provides, and no consuming Dockerfile re-declares:
 - Graceful shutdown: the official `STOPSIGNAL SIGQUIT` and exec-form `php-fpm` command are preserved, and
   `process_control_timeout` is set to 10s, so on stop the master drains in-flight requests before escalating, inside the
   10s default stop timeout of `docker stop` and Compose.
-- In `development` only: Xdebug 3.5.3, Composer 2.10.3, bash, git, undecorated worker output in `docker logs`, and the
+- In `development` only: Xdebug 3.5.3, Composer 2.11.0, bash, git, undecorated worker output in `docker logs`, and the
   process functions re-enabled so Composer can run.
 
-The `builder` image carries Composer 2.10.3, git, and unzip. The `cli` variant adds Xdebug coverage, bash, curl, and the
+The `builder` image carries Composer 2.11.0, git, and unzip. The `cli` variant adds Xdebug coverage, bash, curl, and the
 pinned linters (CodeSniffer 4.0.4 as `phpcs` and `phpcbf`, Mess Detector 2.15.0 as `phpmd`), each fetched over TLS and
 verified against its published sha256 before it enters a layer.
 
@@ -101,19 +102,19 @@ A project consumes the base in two thin files and adds only its own dependencies
 
 ```dockerfile
 # syntax=docker/dockerfile:1
-FROM gustavofreze/php:8.5-development-1.0.10
+FROM gustavofreze/php:8.5-development-1.0.11
 COPY ./ /var/www/html
 ```
 
 ```dockerfile
 # syntax=docker/dockerfile:1
-FROM gustavofreze/php:8.5-builder-1.0.10 AS builder
+FROM gustavofreze/php:8.5-builder-1.0.11 AS builder
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
 COPY ./ ./
 RUN composer dump-autoload --optimize --classmap-authoritative
 
-FROM gustavofreze/php:8.5-runtime-1.0.10
+FROM gustavofreze/php:8.5-runtime-1.0.11
 COPY --from=builder --chown=www-data:www-data /var/www/html /var/www/html
 ```
 
@@ -122,8 +123,8 @@ COPY --from=builder --chown=www-data:www-data /var/www/html /var/www/html
 The `cli` image is invoked directly and never appears in a Dockerfile:
 
 ```shell
-docker run --rm -v "$(pwd)":/var/www/html gustavofreze/php:8.5-cli-1.0.10 composer install
-docker run --rm -v "$(pwd)":/var/www/html gustavofreze/php:8.5-cli-1.0.10 phpcs src/
+docker run --rm -v "$(pwd)":/var/www/html gustavofreze/php:8.5-cli-1.0.11 composer install
+docker run --rm -v "$(pwd)":/var/www/html gustavofreze/php:8.5-cli-1.0.11 phpcs src/
 ```
 
 ### As an FPM service
@@ -131,7 +132,7 @@ docker run --rm -v "$(pwd)":/var/www/html gustavofreze/php:8.5-cli-1.0.10 phpcs 
 ```yaml
 services:
     php:
-        image: gustavofreze/php:8.5-development-1.0.10
+        image: gustavofreze/php:8.5-development-1.0.11
         volumes:
             - ./:/var/www/html
         expose:
@@ -164,7 +165,7 @@ This family carries no accepted risk, so it publishes no [OpenVEX](https://openv
 exemption of any kind. Every scan in the gate runs bare, and what it reports is what the images contain:
 
 ```shell
-trivy image gustavofreze/php:8.5-cli-1.0.10
+trivy image gustavofreze/php:8.5-cli-1.0.11
 ```
 
 It published one until 1.0.3. The docker CLI that `cli` carries was built with a Go toolchain older than the release
