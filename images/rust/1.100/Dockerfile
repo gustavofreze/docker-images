@@ -65,7 +65,7 @@ CMD ["/bin/sh"]
 FROM runtime AS development
 
 LABEL org.opencontainers.image.title="gustavofreze/rust-development" \
-      org.opencontainers.image.description="Rust 1.100 development runtime: runtime plus Cargo, Clippy, rustfmt, bash, and git"
+      org.opencontainers.image.description="Rust 1.100 development runtime: runtime plus Cargo, Clippy, rustfmt, rust-src, bash, git, and Dev Container support"
 
 ENV PATH="/usr/local/cargo/bin:${PATH}" \
     CARGO_HOME=/usr/local/cargo \
@@ -73,10 +73,14 @@ ENV PATH="/usr/local/cargo/bin:${PATH}" \
 
 USER 0
 
-RUN apk add --no-cache bash gcc git musl-dev \
+RUN apk add --no-cache bash curl freetype gcc gcompat git libxext libxi libxrender libxtst musl-dev procps-ng unzip \
     && git config --system --add safe.directory /app
 
 COPY --from=cli /usr/local/rustup /usr/local/rustup
 COPY --from=cli /usr/local/cargo /usr/local/cargo
+
+RUN rustup component add rust-src \
+    && rm -rf "${RUSTUP_HOME}/downloads" "${RUSTUP_HOME}/tmp" \
+    && chmod a+w "${CARGO_HOME}" "${RUSTUP_HOME}"
 
 USER 1000

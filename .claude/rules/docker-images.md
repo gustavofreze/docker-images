@@ -72,6 +72,8 @@ The Rust base (`gustavofreze/rust`, four targets) bakes in the `app` user (uid 1
 certificate bundle, and `RUST_BACKTRACE=1` in `runtime` and `development`. rustc, Cargo, the gcc linker and `musl-dev`
 live in `builder`, `cli` and `development`, Clippy and rustfmt in `cli` and `development`, and none of them reaches
 `runtime`, which is a pinned Alpine, flattened to one layer, that a statically linked binary is copied into.
+`development` also carries `rust-src` and the packages a JetBrains Dev Container backend needs, so a project runs its
+IDE inside that image with no Dockerfile of its own.
 
 ## Stage vocabulary and tags
 
@@ -290,7 +292,17 @@ simplifying an instruction: each item below is load bearing, and the build or th
   runs `chmod -R a+w` on both so a non-root user can fetch crates and add components, which is what lets `builder` and
   `development` run as uid 1000 with no configuration. Tightening it here means a `chmod -R` in a later layer, which
   rewrites the metadata of every file and makes dive count the whole toolchain as shadowed, per § Lean layers. Neither
-  directory exists in `runtime`.
+  directory exists in `runtime`. The Rust `development` gets both through `COPY --from=cli`, which copies the contents
+  of a directory and creates the directory itself as root with mode 0755, so the upstream `a+w` on the two top
+  directories is lost while everything under them keeps it. The `app` user then cannot create `registry/` and fails
+  the first crate it fetches. `development` therefore runs `chmod a+w` on those two directories alone, which rewrites
+  two inodes and shadows nothing, and its smoke asserts the `app` user can write the cargo home.
+- **The Rust `development` is the image a Dev Container runs.** An IDE that runs inside the container resolves the
+  standard library from `rust-src`, which `rustup component add` installs at the pinned toolchain, the same way as
+  Clippy and rustfmt. A JetBrains backend ships glibc binaries, so the target adds `gcompat` to run them on musl, plus
+  the X11 rendering libraries it loads headless (`libxext`, `libxrender`, `libxtst`, `libxi`, `freetype`) and the
+  `curl`, `unzip` and `procps-ng` it installs and supervises itself with. These serve every Rust project developed in
+  a container, which is why they live in the base instead of a Dockerfile per project. None of them reaches `runtime`.
 - **Clippy and rustfmt enter through `rustup component add`, in `cli` only.** rustup resolves a component to the exact
   toolchain the `FROM` pin installed and verifies it against the hashes in that release's manifest, so the version is
   the pin itself and no `ARG` restates it. `builder` stays without them, which its smoke asserts.
