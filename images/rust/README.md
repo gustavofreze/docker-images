@@ -16,12 +16,12 @@ and a `cli` tooling image a project Makefile invokes.
 
 ## Supported tags
 
-| Tag                       | Alias               | Purpose                                                          |
-|:--------------------------|:--------------------|:-----------------------------------------------------------------|
-| `1.100-runtime-1.0.0`     | `1.100-runtime`     | Production base for a static binary. No toolchain, no shell kit. |
-| `1.100-development-1.0.0` | `1.100-development` | Local development: runtime plus Cargo, Clippy, rustfmt, git.     |
-| `1.100-builder-1.0.0`     | `1.100-builder`     | Cargo and the musl toolchain for the builder stage of an image.  |
-| `1.100-cli-1.0.0`         | `1.100-cli`         | Makefile tooling: Cargo, Clippy, rustfmt, git, bash, curl.       |
+| Tag                       | Alias               | Purpose                                                           |
+|:--------------------------|:--------------------|:------------------------------------------------------------------|
+| `1.100-runtime-1.0.1`     | `1.100-runtime`     | Production base for a static binary. No toolchain, no shell kit.  |
+| `1.100-development-1.0.1` | `1.100-development` | Local development and Dev Containers: runtime plus the toolchain. |
+| `1.100-builder-1.0.1`     | `1.100-builder`     | Cargo and the musl toolchain for the builder stage of an image.   |
+| `1.100-cli-1.0.1`         | `1.100-cli`         | Makefile tooling: Cargo, Clippy, rustfmt, git, bash, curl.        |
 
 Every tag is `<upstream-minor>-<target>-<version>`. There is no bare tag and `latest` is forbidden.
 
@@ -38,12 +38,12 @@ All four are built from one multi-target
 
 ![Image family targets](https://raw.githubusercontent.com/gustavofreze/docker-images/main/docs/diagrams/docker-images-targets.svg)
 
-| Target        | Runs as          | On top of the base                                                       |
-|:--------------|:-----------------|:-------------------------------------------------------------------------|
-| `runtime`     | `app` (uid 1000) | Nothing. A pinned Alpine in a single layer, around 13 MB.                |
-| `development` | `app` (uid 1000) | `runtime` plus rustc, Cargo, Clippy, rustfmt, the gcc linker, bash, git. |
-| `builder`     | `app` (uid 1000) | The upstream toolchain: rustc and Cargo targeting musl, gcc, `musl-dev`. |
-| `cli`         | root             | `builder` plus Clippy, rustfmt, bash, curl, git.                         |
+| Target        | Runs as          | On top of the base                                                            |
+|:--------------|:-----------------|:------------------------------------------------------------------------------|
+| `runtime`     | `app` (uid 1000) | Nothing. A pinned Alpine in a single layer, around 13 MB.                     |
+| `development` | `app` (uid 1000) | `runtime` plus rustc, Cargo, Clippy, rustfmt, rust-src, gcc, bash, git, curl. |
+| `builder`     | `app` (uid 1000) | The upstream toolchain: rustc and Cargo targeting musl, gcc, `musl-dev`.      |
+| `cli`         | root             | `builder` plus Clippy, rustfmt, bash, curl, git.                              |
 
 - `runtime` is not built on the Rust image. A release binary targeting musl links statically, so it needs no
   interpreter, no standard library on disk, and no compiler runtime.
@@ -71,6 +71,9 @@ Every image provides, and no consuming Dockerfile re-declares:
   suite proves it by running one in the `runtime`.
 - **A writable `CARGO_HOME`** at the upstream `/usr/local/cargo` wherever the toolchain ships, so the `app` user
   fetches crates into it with no extra configuration.
+- **A Dev Container ready `development`.** It carries `rust-src`, so an IDE resolves the standard library, and the
+  packages a JetBrains backend needs inside the container: `gcompat`, the X11 rendering libraries, `curl`, `unzip`, and
+  `procps`.
 
 ## How to use this image
 
@@ -80,19 +83,19 @@ A project consumes the base in two thin files and adds only its own dependencies
 
 ```dockerfile
 # syntax=docker/dockerfile:1
-FROM gustavofreze/rust:1.100-development-1.0.0
+FROM gustavofreze/rust:1.100-development-1.0.1
 COPY ./ /app
 ```
 
 ```dockerfile
 # syntax=docker/dockerfile:1
-FROM gustavofreze/rust:1.100-builder-1.0.0 AS builder
+FROM gustavofreze/rust:1.100-builder-1.0.1 AS builder
 COPY Cargo.toml Cargo.lock ./
 RUN cargo fetch --locked
 COPY ./ ./
 RUN cargo build --release --locked --offline
 
-FROM gustavofreze/rust:1.100-runtime-1.0.0
+FROM gustavofreze/rust:1.100-runtime-1.0.1
 COPY --from=builder --chown=app:app /app/target/release/your-application /app/your-application
 CMD ["/app/your-application"]
 ```
@@ -101,6 +104,17 @@ CMD ["/app/your-application"]
 does not repeat it. A crate that links a C library needs that library's development package in the builder stage and
 its shared object in the runtime stage, both added by the project.
 
+### As a Dev Container
+
+The `development` target is the image a Dev Container runs, with the project mounted as its workspace:
+
+```json
+{
+    "image": "gustavofreze/rust:1.100-development-1.0.1",
+    "remoteUser": "app"
+}
+```
+
 ### As a tooling image
 
 The `cli` image is invoked directly and never appears in a Dockerfile.
@@ -108,13 +122,13 @@ The `cli` image is invoked directly and never appears in a Dockerfile.
 To lint the code, run:
 
 ```shell
-docker run --rm -v "$(pwd)":/app gustavofreze/rust:1.100-cli-1.0.0 cargo clippy --all-targets -- -D warnings
+docker run --rm -v "$(pwd)":/app gustavofreze/rust:1.100-cli-1.0.1 cargo clippy --all-targets -- -D warnings
 ```
 
 To check the formatting, run:
 
 ```shell
-docker run --rm -v "$(pwd)":/app gustavofreze/rust:1.100-cli-1.0.0 cargo fmt --check
+docker run --rm -v "$(pwd)":/app gustavofreze/rust:1.100-cli-1.0.1 cargo fmt --check
 ```
 
 The rules that hold across every family live in the
@@ -143,7 +157,7 @@ exemption of any kind. Every scan in the gate runs bare, and what it reports is 
 To scan a tag yourself, run:
 
 ```shell
-trivy image gustavofreze/rust:1.100-runtime-1.0.0
+trivy image gustavofreze/rust:1.100-runtime-1.0.1
 ```
 
 ## License

@@ -76,6 +76,12 @@ verify_development_image() {
     assert_contains "app" "$(run "${image}" whoami)" "development image runs as the non-root app user"
     assert_contains "1" "$(run "${image}" printenv RUST_BACKTRACE)" "panic backtraces inherited from the runtime"
     assert_contains "Hello, world!" "$(run "${image}" sh -c "${PROBE_BUILD} && /tmp/probe/target/release/probe")" "non-root user compiles and runs a binary in the development image"
+    assert_contains "writable" "$(run "${image}" sh -c "mkdir -p \"\${CARGO_HOME}/registry\" && echo writable")" "non-root user fetches crates into the cargo home of the development image"
+    assert_contains "rust-src" "$(run "${image}" rustup component list --installed)" "standard library source present for the IDE in the development image"
+    assert_contains "libgcompat" "$(run "${image}" ls /lib)" "glibc compatibility present for a Dev Container backend in the development image"
+    assert_contains "curl" "$(run "${image}" curl --version)" "curl present for a Dev Container backend in the development image"
+    assert_contains "procps-ng" "$(run "${image}" ps --version)" "procps present for a Dev Container backend in the development image"
+    assert_contains "UnZip" "$(run "${image}" unzip -v)" "unzip present for a Dev Container backend in the development image"
     assert_absent "${image}" "docker" "docker CLI absent from the development image"
 }
 
